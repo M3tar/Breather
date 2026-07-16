@@ -7,7 +7,7 @@ Breather is a native macOS menu bar app that gently reminds you to take regular 
 ## Features
 
 - Menu bar countdown with start, pause, reset, and rest-now actions.
-- Configurable work, short-break, and long-break schedules.
+- Configurable work and short-break schedules.
 - Full-screen rest overlays across multiple displays.
 - Solid, moon, and sun rest backgrounds.
 - Snooze, skip, and make-up rest flows.
@@ -17,6 +17,25 @@ Breather is a native macOS menu bar app that gently reminds you to take regular 
 - Idle detection that can treat time away from the Mac as a completed rest.
 - Optional launch at login using the native macOS login-item service.
 - Light, dark, and system appearance modes.
+
+## Version History
+
+### 0.1.0 — Initial Public Preview
+
+Breather 0.1.0 establishes the complete core break-reminder experience:
+
+- Menu bar countdown with pause, resume, reset, and rest-now actions.
+- Configurable work duration, short-break duration, pre-break notification timing, and idle threshold.
+- Full-screen rest countdowns across every connected display.
+- Solid, moon, and sun backgrounds, with customizable prompts, supporting text, translucency, and transitions.
+- Snooze, skip, Esc-to-skip, and follow-up reminders after repeatedly missed breaks.
+- Idle detection that recognizes time away from the Mac as a completed rest.
+- Separate sounds for pre-break notifications, rest start, and rest completion.
+- Custom menu bar icons, theme colors, progress styles, and center-square styles.
+- Light, dark, and system appearance modes, automatic settings persistence, and optional launch at login.
+- A universal DMG for both Apple silicon and Intel Macs.
+
+See the [0.1.0 release notes](https://github.com/M3tar/Breather/releases/tag/v0.1.0) for the product overview and installation notes.
 
 ## Requirements
 
