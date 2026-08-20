@@ -14,6 +14,11 @@ final class RestSoundService {
         playSystemSound(named: name)
     }
 
+    func stop() {
+        activeSounds.forEach { $0.stop() }
+        activeSounds.removeAll()
+    }
+
     private func playBundledSound(fileName: String) {
         guard let soundURL = bundledSoundURL(fileName: fileName),
               let sound = NSSound(contentsOf: soundURL, byReference: false) else {

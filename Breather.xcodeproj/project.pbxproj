@@ -25,6 +25,13 @@
 		100000000000000000000117 /* LaunchAtLoginService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000018 /* LaunchAtLoginService.swift */; };
 		100000000000000000000118 /* Sounds in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000019 /* Sounds */; };
 		100000000000000000000119 /* Backgrounds in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000020 /* Backgrounds */; };
+		100000000000000000000121 /* BreakSchedulerDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000021 /* BreakSchedulerDependencies.swift */; };
+		100000000000000000000122 /* PauseResumeSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000022 /* PauseResumeSession.swift */; };
+		100000000000000000000123 /* DisplayMirroringMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000023 /* DisplayMirroringMonitor.swift */; };
+		100000000000000000000124 /* GeneralSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000024 /* GeneralSettingsScreen.swift */; };
+		100000000000000000000125 /* ScheduleSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000025 /* ScheduleSettingsScreen.swift */; };
+		100000000000000000000126 /* RestOverlaySettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000026 /* RestOverlaySettingsScreen.swift */; };
+		100000000000000000000127 /* SettingsComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000027 /* SettingsComponents.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -46,6 +53,13 @@
 		100000000000000000000018 /* LaunchAtLoginService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginService.swift; sourceTree = "<group>"; };
 		100000000000000000000019 /* Sounds */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Sounds; sourceTree = "<group>"; };
 		100000000000000000000020 /* Backgrounds */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Backgrounds; sourceTree = "<group>"; };
+		100000000000000000000021 /* BreakSchedulerDependencies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BreakSchedulerDependencies.swift; sourceTree = "<group>"; };
+		100000000000000000000022 /* PauseResumeSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PauseResumeSession.swift; sourceTree = "<group>"; };
+		100000000000000000000023 /* DisplayMirroringMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayMirroringMonitor.swift; sourceTree = "<group>"; };
+		100000000000000000000024 /* GeneralSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsScreen.swift; sourceTree = "<group>"; };
+		100000000000000000000025 /* ScheduleSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleSettingsScreen.swift; sourceTree = "<group>"; };
+		100000000000000000000026 /* RestOverlaySettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestOverlaySettingsScreen.swift; sourceTree = "<group>"; };
+		100000000000000000000027 /* SettingsComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsComponents.swift; sourceTree = "<group>"; };
 		100000000000000000000014 /* Breather.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Breather.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -116,6 +130,8 @@
 				100000000000000000000003 /* AppSettings.swift */,
 				100000000000000000000004 /* BreakRules.swift */,
 				100000000000000000000005 /* BreakScheduler.swift */,
+				100000000000000000000021 /* BreakSchedulerDependencies.swift */,
+				100000000000000000000022 /* PauseResumeSession.swift */,
 				100000000000000000000015 /* SettingsStore.swift */,
 			);
 			path = Core;
@@ -135,6 +151,7 @@
 			isa = PBXGroup;
 			children = (
 				100000000000000000000012 /* IdleMonitor.swift */,
+				100000000000000000000023 /* DisplayMirroringMonitor.swift */,
 				100000000000000000000018 /* LaunchAtLoginService.swift */,
 				100000000000000000000013 /* NotificationService.swift */,
 				100000000000000000000016 /* RestSoundService.swift */,
@@ -163,6 +180,10 @@
 		100000000000000000000310 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				100000000000000000000024 /* GeneralSettingsScreen.swift */,
+				100000000000000000000026 /* RestOverlaySettingsScreen.swift */,
+				100000000000000000000025 /* ScheduleSettingsScreen.swift */,
+				100000000000000000000027 /* SettingsComponents.swift */,
 				100000000000000000000011 /* SettingsView.swift */,
 			);
 			path = Settings;
@@ -241,13 +262,20 @@
 				100000000000000000000103 /* AppSettings.swift in Sources */,
 				100000000000000000000104 /* BreakRules.swift in Sources */,
 				100000000000000000000105 /* BreakScheduler.swift in Sources */,
+				100000000000000000000121 /* BreakSchedulerDependencies.swift in Sources */,
+				100000000000000000000122 /* PauseResumeSession.swift in Sources */,
 				100000000000000000000114 /* SettingsStore.swift in Sources */,
 				100000000000000000000106 /* MenuBarController.swift in Sources */,
 				100000000000000000000107 /* MenuBarView.swift in Sources */,
 				100000000000000000000108 /* RestOverlayWindowController.swift in Sources */,
 				100000000000000000000109 /* RestOverlayView.swift in Sources */,
+				100000000000000000000124 /* GeneralSettingsScreen.swift in Sources */,
+				100000000000000000000126 /* RestOverlaySettingsScreen.swift in Sources */,
+				100000000000000000000125 /* ScheduleSettingsScreen.swift in Sources */,
+				100000000000000000000127 /* SettingsComponents.swift in Sources */,
 				100000000000000000000111 /* SettingsView.swift in Sources */,
 				100000000000000000000112 /* IdleMonitor.swift in Sources */,
+				100000000000000000000123 /* DisplayMirroringMonitor.swift in Sources */,
 				100000000000000000000117 /* LaunchAtLoginService.swift in Sources */,
 				100000000000000000000113 /* NotificationService.swift in Sources */,
 				100000000000000000000115 /* RestSoundService.swift in Sources */,
@@ -380,7 +408,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Breather;
+				INFOPLIST_KEY_CFBundleDisplayName = "Breather Debug";
 				INFOPLIST_KEY_CFBundleVersion = "$(CURRENT_PROJECT_VERSION)";
 				INFOPLIST_KEY_CFBundleShortVersionString = "$(MARKETING_VERSION)";
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -391,7 +419,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mercury.breather;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mercury.breather.debug;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 6.0;
 			};

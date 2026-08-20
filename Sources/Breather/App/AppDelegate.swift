@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var scheduler: BreakScheduler!
     private var menuBarController: MenuBarController!
     private var restOverlayController: RestOverlayWindowController!
+    private let displayMirroringMonitor = DisplayMirroringMonitor()
     private var cancellables: Set<AnyCancellable> = []
 
     let settingsStore = SettingsStore()
@@ -63,6 +64,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                   settings.playRestEndSound else { return }
             self?.restSoundService.play(settings.restEndSoundEffect)
         }
+        scheduler.onDisplayMirroringPauseBegan = { [weak self] in
+            self?.restSoundService.stop()
+        }
+
+        displayMirroringMonitor.onMirroringChanged = { [weak scheduler] isMirroring in
+            scheduler?.setDisplayMirroringActive(isMirroring)
+        }
 
         settingsStore.$settings
             .map(\.appearancePreference)
@@ -72,10 +80,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
+        settingsStore.$settings
+            .map(\.autoPauseDuringDisplayMirroring)
+            .removeDuplicates()
+            .sink { [weak self] isEnabled in
+                self?.configureDisplayMirroringMonitoring(isEnabled: isEnabled)
+            }
+            .store(in: &cancellables)
+
+        let workspaceNotificationCenter = NSWorkspace.shared.notificationCenter
+        workspaceNotificationCenter.publisher(for: NSWorkspace.didWakeNotification)
+            .merge(with: workspaceNotificationCenter.publisher(for: NSWorkspace.sessionDidBecomeActiveNotification))
+            .sink { [weak self] _ in
+                self?.scheduler.refreshPauseAfterWakeOrUnlock()
+                self?.displayMirroringMonitor.refresh()
+            }
+            .store(in: &cancellables)
+
         Task {
             _ = await notificationService.requestAuthorization()
         }
+        scheduler.restorePauseResumeSessionIfNeeded()
         scheduler.start()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        displayMirroringMonitor.stop()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -135,6 +165,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .dark:
             NSApp.appearance = NSAppearance(named: .darkAqua)
         }
+    }
+
+    private func configureDisplayMirroringMonitoring(isEnabled: Bool) {
+        guard isEnabled else {
+            displayMirroringMonitor.stop()
+            scheduler.disableDisplayMirroringAutoPause()
+            return
+        }
+
+        displayMirroringMonitor.start()
     }
 
     private func installMainMenu() {

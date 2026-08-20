@@ -41,9 +41,9 @@ struct BreatherApp: App {
                 appDelegate.settingsWindowDidDisappear()
             }
         }
-        .windowResizability(.contentSize)
+        .windowResizability(.contentMinSize)
         .defaultPosition(.center)
-        .defaultSize(width: 720, height: 600)
+        .defaultSize(width: 960, height: 680)
         .defaultLaunchBehavior(.suppressed)
     }
 

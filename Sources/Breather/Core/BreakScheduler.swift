@@ -9,12 +9,20 @@ enum BreakState: Equatable {
     case idleRested
 }
 
+enum PauseReason: Hashable {
+    case user
+    case displayMirroring
+}
+
 @MainActor
 final class BreakScheduler: ObservableObject {
     @Published private(set) var state: BreakState = .working
     @Published private(set) var remainingSeconds: Int
     @Published private(set) var statusText: String = "工作结束后，休息 30 秒"
     @Published private(set) var consecutiveMissedBreaks: Int = 0
+    @Published private(set) var pauseReasons: Set<PauseReason> = []
+    @Published private(set) var pauseResumeSession: PauseResumeSession?
+    @Published private(set) var pauseResumeRemainingSeconds: Int?
 
     let settingsStore: SettingsStore
 
@@ -22,22 +30,29 @@ final class BreakScheduler: ObservableObject {
     var onRestEnded: (() -> Void)?
     var onRestBegan: (() -> Void)?
     var onRestFinished: (() -> Void)?
+    var onDisplayMirroringPauseBegan: (() -> Void)?
 
-    private let notificationService: NotificationService
-    private let idleMonitor: IdleMonitor
+    private let notificationService: any BreakNotificationSending
+    private let idleMonitor: any IdleTimeProviding
+    private let pauseResumeSessionStore: PauseResumeSessionStore
+    private let now: () -> Date
     private var timer: Timer?
     private var notificationSent = false
     private var previousStateBeforePause: BreakState = .working
 
     init(
         settingsStore: SettingsStore,
-        notificationService: NotificationService,
-        idleMonitor: IdleMonitor
+        notificationService: any BreakNotificationSending,
+        idleMonitor: any IdleTimeProviding,
+        pauseResumeSessionStore: PauseResumeSessionStore = PauseResumeSessionStore(),
+        now: @escaping () -> Date = Date.init
     ) {
         self.settingsStore = settingsStore
         self.notificationService = notificationService
         self.idleMonitor = idleMonitor
-        self.remainingSeconds = Int(settingsStore.rules.workDuration)
+        self.pauseResumeSessionStore = pauseResumeSessionStore
+        self.now = now
+        self.remainingSeconds = Int(settingsStore.currentCycleRules.workDuration)
         updateStatusText()
     }
 
@@ -49,11 +64,31 @@ final class BreakScheduler: ObservableObject {
         state == .resting
     }
 
+    var isUserPauseActive: Bool {
+        pauseReasons.contains(.user)
+    }
+
+    var isDisplayMirroringPauseActive: Bool {
+        pauseReasons.contains(.displayMirroring)
+    }
+
     var shouldShowRecoveryNudge: Bool {
         consecutiveMissedBreaks >= settingsStore.settings.recoveryNudgeThreshold
     }
 
     var menuBarTitle: String {
+        if isDisplayMirroringPauseActive {
+            return "镜像中"
+        }
+
+        if isUserPauseActive {
+            if let pauseResumeRemainingSeconds {
+                let minutes = max(1, Int(ceil(Double(pauseResumeRemainingSeconds) / 60.0)))
+                return "暂停 \(minutes)m"
+            }
+            return "已暂停"
+        }
+
         guard settingsStore.settings.showCountdownInMenuBar else { return "Breather" }
         if settingsStore.settings.showSeconds {
             return formattedTime
@@ -68,8 +103,52 @@ final class BreakScheduler: ObservableObject {
         return String(format: "%02d:%02d", minutes, seconds)
     }
 
+    var pauseStatusText: String? {
+        if isDisplayMirroringPauseActive {
+            return "屏幕镜像中 · 休息提醒已暂停"
+        }
+        if let pauseResumeRemainingSeconds, isUserPauseActive {
+            return "已暂停 · \(formattedDuration(pauseResumeRemainingSeconds))后重新开始"
+        }
+        if isUserPauseActive {
+            return "已暂停 · 直到手动继续"
+        }
+        return nil
+    }
+
+    var pauseContextTitle: String? {
+        if isDisplayMirroringPauseActive {
+            return "屏幕镜像中"
+        }
+        if isUserPauseActive {
+            return "Breather 已暂停"
+        }
+        return nil
+    }
+
+    var pauseContextDetail: String? {
+        if isDisplayMirroringPauseActive {
+            return "休息提醒已暂停"
+        }
+        if let pauseResumeRemainingSeconds, isUserPauseActive {
+            return "\(formattedDuration(pauseResumeRemainingSeconds))后重新开始完整工作周期"
+        }
+        if isUserPauseActive {
+            return "不会提醒休息，直到你手动继续"
+        }
+        return nil
+    }
+
+    var pauseContextFootnote: String? {
+        if isDisplayMirroringPauseActive {
+            return "检测到 AirPlay 或有线屏幕镜像"
+        }
+        return nil
+    }
+
     func start() {
         timer?.invalidate()
+        _ = refreshPauseResumeSession()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.tick()
@@ -77,24 +156,103 @@ final class BreakScheduler: ObservableObject {
         }
     }
 
-    func togglePause() {
-        if state == .paused {
-            state = previousStateBeforePause
-            if state == .resting {
-                onRestStarted?()
-            }
+    func restorePauseResumeSessionIfNeeded() {
+        guard let session = pauseResumeSessionStore.load() else { return }
+        guard !session.isExpired(at: now()) else {
+            pauseResumeSessionStore.clear()
+            return
+        }
+
+        pauseResumeSession = session
+        updatePauseResumeRemainingSeconds(at: now())
+        addPauseReason(.user)
+    }
+
+    func refreshPauseAfterWakeOrUnlock() {
+        _ = refreshPauseResumeSession()
+    }
+
+    func beginPauseAutoResume(until resumesAt: Date) {
+        let currentDate = now()
+        guard resumesAt > currentDate else {
+            cancelPauseAutoResume()
+            return
+        }
+
+        if !isUserPauseActive {
+            addPauseReason(.user)
+        }
+
+        let session = PauseResumeSession(startedAt: currentDate, resumesAt: resumesAt)
+        pauseResumeSession = session
+        pauseResumeSessionStore.save(session)
+        updatePauseResumeRemainingSeconds(at: currentDate)
+        updateStatusText()
+    }
+
+    func cancelPauseAutoResume() {
+        pauseResumeSession = nil
+        pauseResumeRemainingSeconds = nil
+        pauseResumeSessionStore.clear()
+        updateStatusText()
+    }
+
+    func continueUserPause() {
+        guard isUserPauseActive else { return }
+
+        cancelPauseAutoResume()
+        pauseReasons.remove(.user)
+        restoreStateAfterOrdinaryPauseIfPossible()
+        updateStatusText()
+    }
+
+    func setDisplayMirroringActive(_ isActive: Bool) {
+        if isActive {
+            guard settingsStore.settings.autoPauseDuringDisplayMirroring else { return }
+            addPauseReason(.displayMirroring)
         } else {
-            previousStateBeforePause = state
-            state = .paused
-            onRestEnded?()
+            removeDisplayMirroringPauseReason()
+        }
+    }
+
+    func disableDisplayMirroringAutoPause() {
+        setDisplayMirroringActive(false)
+    }
+
+    func togglePause() {
+        guard !isDisplayMirroringPauseActive else { return }
+
+        if isUserPauseActive {
+            continueUserPause()
+        } else {
+            addPauseReason(.user)
         }
         updateStatusText()
     }
 
     func resetWorkCycle() {
         let wasResting = state == .resting
+
+        settingsStore.activateSavedRulesForCurrentCycle()
+
+        pauseResumeSession = nil
+        pauseResumeRemainingSeconds = nil
+        pauseResumeSessionStore.clear()
+
+        if isDisplayMirroringPauseActive {
+            pauseReasons.remove(.user)
+            remainingSeconds = Int(settingsStore.currentCycleRules.workDuration)
+            previousStateBeforePause = .working
+            notificationSent = false
+            onRestEnded?()
+            updateStatusText()
+            return
+        }
+
+        pauseReasons.removeAll()
         state = .working
-        remainingSeconds = Int(settingsStore.rules.workDuration)
+        previousStateBeforePause = .working
+        remainingSeconds = Int(settingsStore.currentCycleRules.workDuration)
         notificationSent = false
         onRestEnded?()
         if wasResting {
@@ -104,11 +262,20 @@ final class BreakScheduler: ObservableObject {
     }
 
     func applyCurrentRulesToCurrentCycle() {
+        settingsStore.activateSavedRulesForCurrentCycle()
         notificationSent = false
+
+        if isDisplayMirroringPauseActive {
+            previousStateBeforePause = .working
+            remainingSeconds = Int(settingsStore.currentCycleRules.workDuration)
+            onRestEnded?()
+            updateStatusText()
+            return
+        }
 
         switch state {
         case .resting:
-            remainingSeconds = Int(settingsStore.rules.shortBreakDuration)
+            remainingSeconds = Int(settingsStore.currentCycleRules.shortBreakDuration)
             onRestStarted?()
         case .snoozing:
             remainingSeconds = Int(settingsStore.settings.snoozeDuration)
@@ -116,15 +283,15 @@ final class BreakScheduler: ObservableObject {
         case .paused:
             switch previousStateBeforePause {
             case .resting:
-                remainingSeconds = Int(settingsStore.rules.shortBreakDuration)
+                remainingSeconds = Int(settingsStore.currentCycleRules.shortBreakDuration)
             case .snoozing:
                 remainingSeconds = Int(settingsStore.settings.snoozeDuration)
             case .working, .notifying, .idleRested, .paused:
-                remainingSeconds = Int(settingsStore.rules.workDuration)
+                remainingSeconds = Int(settingsStore.currentCycleRules.workDuration)
             }
         case .working, .notifying, .idleRested:
             state = .working
-            remainingSeconds = Int(settingsStore.rules.workDuration)
+            remainingSeconds = Int(settingsStore.currentCycleRules.workDuration)
             onRestEnded?()
         }
 
@@ -132,6 +299,11 @@ final class BreakScheduler: ObservableObject {
     }
 
     func startRestNow() {
+        guard !isDisplayMirroringPauseActive else { return }
+        pauseReasons.remove(.user)
+        pauseResumeSession = nil
+        pauseResumeRemainingSeconds = nil
+        pauseResumeSessionStore.clear()
         beginRest()
     }
 
@@ -153,7 +325,10 @@ final class BreakScheduler: ObservableObject {
         updateStatusText()
     }
 
-    private func tick() {
+    func tick() {
+        if refreshPauseResumeSession() {
+            return
+        }
         guard state != .paused else { return }
 
         if state == .idleRested {
@@ -168,7 +343,7 @@ final class BreakScheduler: ObservableObject {
         if idleMonitor.idleSeconds >= settingsStore.settings.idleThreshold,
            state == .working || state == .notifying || state == .snoozing {
             state = .idleRested
-            remainingSeconds = Int(settingsStore.rules.workDuration)
+            remainingSeconds = Int(settingsStore.currentCycleRules.workDuration)
             notificationSent = false
             consecutiveMissedBreaks = 0
             onRestEnded?()
@@ -180,7 +355,7 @@ final class BreakScheduler: ObservableObject {
 
         if state == .working,
            !notificationSent,
-           remainingSeconds <= Int(settingsStore.rules.preBreakNotificationOffset) {
+           remainingSeconds <= Int(settingsStore.currentCycleRules.preBreakNotificationOffset) {
             state = .notifying
             notificationSent = true
             notificationService.sendPreBreakNotification(
@@ -206,9 +381,91 @@ final class BreakScheduler: ObservableObject {
         updateStatusText()
     }
 
+    private func addPauseReason(_ reason: PauseReason) {
+        guard !pauseReasons.contains(reason) else {
+            updateStatusText()
+            return
+        }
+
+        if pauseReasons.isEmpty {
+            previousStateBeforePause = state
+        }
+
+        pauseReasons.insert(reason)
+        state = .paused
+        onRestEnded?()
+
+        if reason == .displayMirroring {
+            onDisplayMirroringPauseBegan?()
+        }
+        updateStatusText()
+    }
+
+    private func removeDisplayMirroringPauseReason() {
+        guard pauseReasons.contains(.displayMirroring) else { return }
+
+        pauseReasons.remove(.displayMirroring)
+        prepareFreshWorkCycleAfterProtectedPause()
+    }
+
+    private func prepareFreshWorkCycleAfterProtectedPause() {
+        settingsStore.activateSavedRulesForCurrentCycle()
+        remainingSeconds = Int(settingsStore.currentCycleRules.workDuration)
+        notificationSent = false
+        previousStateBeforePause = .working
+        onRestEnded?()
+
+        if pauseReasons.isEmpty {
+            state = .working
+        } else {
+            state = .paused
+        }
+        updateStatusText()
+    }
+
+    private func restoreStateAfterOrdinaryPauseIfPossible() {
+        guard pauseReasons.isEmpty else {
+            state = .paused
+            return
+        }
+
+        state = previousStateBeforePause == .paused ? .working : previousStateBeforePause
+        if state == .resting {
+            onRestStarted?()
+        }
+    }
+
+    @discardableResult
+    private func refreshPauseResumeSession() -> Bool {
+        guard let session = pauseResumeSession else { return false }
+        let currentDate = now()
+
+        if session.isExpired(at: currentDate) {
+            pauseResumeSession = nil
+            pauseResumeRemainingSeconds = nil
+            pauseResumeSessionStore.clear()
+            pauseReasons.remove(.user)
+            prepareFreshWorkCycleAfterProtectedPause()
+            return true
+        }
+
+        updatePauseResumeRemainingSeconds(at: currentDate)
+        updateStatusText()
+        return false
+    }
+
+    private func updatePauseResumeRemainingSeconds(at date: Date) {
+        guard let resumesAt = pauseResumeSession?.resumesAt else {
+            pauseResumeRemainingSeconds = nil
+            return
+        }
+
+        pauseResumeRemainingSeconds = max(0, Int(ceil(resumesAt.timeIntervalSince(date))))
+    }
+
     private func beginRest() {
         state = .resting
-        remainingSeconds = Int(settingsStore.rules.shortBreakDuration)
+        remainingSeconds = Int(settingsStore.currentCycleRules.shortBreakDuration)
         notificationSent = false
         updateStatusText()
         onRestStarted?()
@@ -216,9 +473,14 @@ final class BreakScheduler: ObservableObject {
     }
 
     private func updateStatusText() {
+        if let pauseStatusText {
+            statusText = pauseStatusText
+            return
+        }
+
         switch state {
         case .working, .notifying:
-            statusText = "工作结束后，休息 \(Int(settingsStore.rules.shortBreakDuration)) 秒"
+            statusText = "工作结束后，休息 \(Int(settingsStore.currentCycleRules.shortBreakDuration)) 秒"
         case .resting:
             statusText = "请眺望远方"
         case .snoozing:
@@ -228,6 +490,14 @@ final class BreakScheduler: ObservableObject {
         case .idleRested:
             statusText = "已休息，重新开始"
         }
+    }
+
+    private func formattedDuration(_ seconds: Int) -> String {
+        if seconds >= 60 {
+            let minutes = max(1, Int(ceil(Double(seconds) / 60.0)))
+            return "\(minutes) 分钟"
+        }
+        return "\(max(1, seconds)) 秒"
     }
 
     private func formattedSnoozeDuration(_ seconds: Int) -> String {

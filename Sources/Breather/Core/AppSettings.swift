@@ -70,7 +70,7 @@ enum MenuBarPopoverProgressStyle: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .radix: "Radix 滑动"
+        case .radix: "滑动刻度"
         case .segments: "Segments 分段"
         }
     }
@@ -346,7 +346,6 @@ enum RestSoundEffect: String, Codable, CaseIterable, Identifiable {
             .stardewMineral,
             .stardewNewRecord,
             .stardewReward,
-            .codexNotification,
             .glass,
             .ping,
             .pop,
@@ -474,20 +473,37 @@ enum RestSoundEffect: String, Codable, CaseIterable, Identifiable {
             nil
         }
     }
+
+    var bundledNotificationSoundFileName: String? {
+        switch self {
+        case .stardewFishHook,
+             .stardewAchievement,
+             .stardewSpecialItem,
+             .stardewGiveGift,
+             .stardewHorseFlute,
+             .stardewMineral,
+             .stardewNewRecord,
+             .stardewReward:
+            "\(rawValue).wav"
+        case .random:
+            RestSoundEffect.fixedCases.randomElement()?.bundledNotificationSoundFileName
+        default:
+            nil
+        }
+    }
 }
 
 struct AppSettings: Codable, Equatable {
-    var launchAtLogin: Bool = false
     var appearancePreference: AppearancePreference = .system
     var showMenuBarIcon: Bool = true
     var menuBarIcon: MenuBarIcon = .breather01
-    var menuBarPopoverThemeColor: MenuBarPopoverThemeColor = .jadeCore
-    var menuBarPopoverProgressStyle: MenuBarPopoverProgressStyle = .radix
+    var menuBarPopoverThemeColor: MenuBarPopoverThemeColor = .jadeToken
+    var menuBarPopoverProgressStyle: MenuBarPopoverProgressStyle = .segments
     var menuBarPopoverSquareStyle: MenuBarPopoverSquareStyle = .breathing
     var menuBarPopoverSquareColorMode: MenuBarPopoverSquareColorMode = .followTheme
     var menuBarPopoverAppearance: MenuBarPopoverAppearance = .system
     var showCountdownInMenuBar: Bool = true
-    var showSeconds: Bool = false
+    var showSeconds: Bool = true
     var ruleChangeEffect: RuleChangeEffect = .nextCycle
     var playSound: Bool = true
     var notificationSoundEnabled: Bool = true
@@ -497,10 +513,10 @@ struct AppSettings: Codable, Equatable {
     var snoozeDuration: TimeInterval = 3 * 60
     var recoveryNudgeThreshold: Int = 2
     var strictMode: Bool = false
-    var pauseDuringScreenSharing: Bool = false
+    var autoPauseDuringDisplayMirroring: Bool = true
     var resetAfterWakeOrUnlock: Bool = false
     var restOverlayPrompt: RestOverlayPrompt = .lookFar
-    var restOverlaySubtitle: RestOverlaySubtitle = .takeBreath
+    var restOverlaySubtitle: RestOverlaySubtitle = .random
     var restOverlayBackground: RestOverlayBackground = .solid
     var restOverlayFadeAnimation: Bool = true
     var restOverlayTranslucentBackground: Bool = false
@@ -514,17 +530,17 @@ struct AppSettings: Codable, Equatable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        launchAtLogin = try container.decodeIfPresent(Bool.self, forKey: .launchAtLogin) ?? false
+        let legacyContainer = try decoder.container(keyedBy: LegacyCodingKeys.self)
         appearancePreference = try container.decodeIfPresent(AppearancePreference.self, forKey: .appearancePreference) ?? .system
         showMenuBarIcon = try container.decodeIfPresent(Bool.self, forKey: .showMenuBarIcon) ?? true
         menuBarIcon = try container.decodeIfPresent(MenuBarIcon.self, forKey: .menuBarIcon) ?? .breather01
-        menuBarPopoverThemeColor = try container.decodeIfPresent(MenuBarPopoverThemeColor.self, forKey: .menuBarPopoverThemeColor) ?? .jadeCore
-        menuBarPopoverProgressStyle = try container.decodeIfPresent(MenuBarPopoverProgressStyle.self, forKey: .menuBarPopoverProgressStyle) ?? .radix
+        menuBarPopoverThemeColor = try container.decodeIfPresent(MenuBarPopoverThemeColor.self, forKey: .menuBarPopoverThemeColor) ?? .jadeToken
+        menuBarPopoverProgressStyle = try container.decodeIfPresent(MenuBarPopoverProgressStyle.self, forKey: .menuBarPopoverProgressStyle) ?? .segments
         menuBarPopoverSquareStyle = try container.decodeIfPresent(MenuBarPopoverSquareStyle.self, forKey: .menuBarPopoverSquareStyle) ?? .breathing
         menuBarPopoverSquareColorMode = try container.decodeIfPresent(MenuBarPopoverSquareColorMode.self, forKey: .menuBarPopoverSquareColorMode) ?? .followTheme
         menuBarPopoverAppearance = try container.decodeIfPresent(MenuBarPopoverAppearance.self, forKey: .menuBarPopoverAppearance) ?? .system
         showCountdownInMenuBar = try container.decodeIfPresent(Bool.self, forKey: .showCountdownInMenuBar) ?? true
-        showSeconds = try container.decodeIfPresent(Bool.self, forKey: .showSeconds) ?? false
+        showSeconds = try container.decodeIfPresent(Bool.self, forKey: .showSeconds) ?? true
         ruleChangeEffect = try container.decodeIfPresent(RuleChangeEffect.self, forKey: .ruleChangeEffect) ?? .nextCycle
         playSound = try container.decodeIfPresent(Bool.self, forKey: .playSound) ?? true
         notificationSoundEnabled = try container.decodeIfPresent(Bool.self, forKey: .notificationSoundEnabled) ?? playSound
@@ -534,10 +550,17 @@ struct AppSettings: Codable, Equatable {
         snoozeDuration = try container.decodeIfPresent(TimeInterval.self, forKey: .snoozeDuration) ?? 3 * 60
         recoveryNudgeThreshold = try container.decodeIfPresent(Int.self, forKey: .recoveryNudgeThreshold) ?? 2
         strictMode = try container.decodeIfPresent(Bool.self, forKey: .strictMode) ?? false
-        pauseDuringScreenSharing = try container.decodeIfPresent(Bool.self, forKey: .pauseDuringScreenSharing) ?? false
+        let legacyMasterSwitch = try legacyContainer.decodeIfPresent(Bool.self, forKey: .screenSharingPauseEnabled)
+            ?? legacyContainer.decodeIfPresent(Bool.self, forKey: .pauseDuringScreenSharing)
+        let storedAutoPause = try container.decodeIfPresent(Bool.self, forKey: .autoPauseDuringDisplayMirroring)
+        if let legacyMasterSwitch {
+            autoPauseDuringDisplayMirroring = legacyMasterSwitch && (storedAutoPause ?? true)
+        } else {
+            autoPauseDuringDisplayMirroring = storedAutoPause ?? true
+        }
         resetAfterWakeOrUnlock = try container.decodeIfPresent(Bool.self, forKey: .resetAfterWakeOrUnlock) ?? false
         restOverlayPrompt = try container.decodeIfPresent(RestOverlayPrompt.self, forKey: .restOverlayPrompt) ?? .lookFar
-        restOverlaySubtitle = try container.decodeIfPresent(RestOverlaySubtitle.self, forKey: .restOverlaySubtitle) ?? .takeBreath
+        restOverlaySubtitle = try container.decodeIfPresent(RestOverlaySubtitle.self, forKey: .restOverlaySubtitle) ?? .random
         restOverlayBackground = try container.decodeIfPresent(RestOverlayBackground.self, forKey: .restOverlayBackground) ?? .solid
         restOverlayFadeAnimation = try container.decodeIfPresent(Bool.self, forKey: .restOverlayFadeAnimation) ?? true
         restOverlayTranslucentBackground = try container.decodeIfPresent(Bool.self, forKey: .restOverlayTranslucentBackground) ?? false
@@ -546,5 +569,10 @@ struct AppSettings: Codable, Equatable {
         restStartSoundEffect = try container.decodeIfPresent(RestSoundEffect.self, forKey: .restStartSoundEffect) ?? (playRestStartSound ? .stardewNewRecord : .none)
         restEndSoundEffect = try container.decodeIfPresent(RestSoundEffect.self, forKey: .restEndSoundEffect) ?? (playRestEndSound ? .stardewHorseFlute : .none)
         idleThreshold = try container.decodeIfPresent(TimeInterval.self, forKey: .idleThreshold) ?? 5 * 60
+    }
+
+    private enum LegacyCodingKeys: String, CodingKey {
+        case pauseDuringScreenSharing
+        case screenSharingPauseEnabled
     }
 }

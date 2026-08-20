@@ -44,6 +44,13 @@ final class MenuBarController: NSObject {
             }
             .store(in: &cancellables)
 
+        scheduler.$pauseResumeRemainingSeconds
+            .combineLatest(scheduler.$pauseReasons)
+            .sink { [weak self] _ in
+                self?.updateStatusItem()
+            }
+            .store(in: &cancellables)
+
         scheduler.settingsStore.$settings
             .sink { [weak self] _ in
                 self?.updateStatusItem()

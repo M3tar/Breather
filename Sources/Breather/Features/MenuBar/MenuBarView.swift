@@ -105,20 +105,23 @@ struct MenuBarView: View {
     }
 
     private var totalSeconds: Int {
-        switch scheduler.state {
+        return switch scheduler.state {
         case .resting:
-            Int(scheduler.settingsStore.rules.shortBreakDuration)
+            Int(scheduler.settingsStore.currentCycleRules.shortBreakDuration)
         case .snoozing:
             Int(scheduler.settingsStore.settings.snoozeDuration)
         case .paused:
-            max(Int(scheduler.settingsStore.rules.workDuration), scheduler.remainingSeconds)
+            max(Int(scheduler.settingsStore.currentCycleRules.workDuration), scheduler.remainingSeconds)
         case .working, .notifying, .idleRested:
-            Int(scheduler.settingsStore.rules.workDuration)
+            Int(scheduler.settingsStore.currentCycleRules.workDuration)
         }
     }
 
     private var phaseTitle: String {
-        switch scheduler.state {
+        if scheduler.isDisplayMirroringPauseActive {
+            return "Mirror"
+        }
+        return switch scheduler.state {
         case .working, .notifying: "Process"
         case .resting: "Rest"
         case .snoozing: "Snooze"
@@ -129,6 +132,75 @@ struct MenuBarView: View {
 
     private var percentText: String {
         "\(Int((progress * 100).rounded()))%"
+    }
+
+    private var fullWorkCycleText: String {
+        let minutes = max(1, Int((scheduler.settingsStore.rules.workDuration / 60).rounded()))
+        return "完整 \(minutes) 分钟工作周期"
+    }
+
+    private var nextStepTitle: String {
+        switch scheduler.state {
+        case .working, .notifying:
+            "本轮结束后进入休息"
+        case .resting:
+            "休息结束后开始工作"
+        case .snoozing:
+            "稍后重新提醒休息"
+        case .idleRested:
+            "活动后重新开始工作"
+        case .paused:
+            ""
+        }
+    }
+
+    private var nextStepDetail: String {
+        Self.nextStepDetail(
+            for: scheduler.state,
+            currentCycleRules: scheduler.settingsStore.currentCycleRules,
+            savedRules: scheduler.settingsStore.rules
+        )
+    }
+
+    static func nextStepDetail(
+        for state: BreakState,
+        currentCycleRules: BreakRules,
+        savedRules: BreakRules
+    ) -> String {
+        let duration: TimeInterval
+        let label: String
+
+        switch state {
+        case .working, .notifying, .snoozing:
+            duration = currentCycleRules.shortBreakDuration
+            label = "休息"
+        case .resting, .idleRested, .paused:
+            duration = savedRules.workDuration
+            label = "工作"
+        }
+
+        return "\(label) \(Self.formattedNextStepDuration(duration))"
+    }
+
+    static func formattedNextStepDuration(_ duration: TimeInterval) -> String {
+        let totalSeconds = max(1, Int(duration))
+        guard totalSeconds >= 60 else {
+            return "\(totalSeconds) 秒"
+        }
+
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        guard seconds > 0 else {
+            return "\(minutes) 分钟"
+        }
+        return "\(minutes) 分 \(seconds) 秒"
+    }
+
+    private var pauseContextAccessibilityLabel: String {
+        if scheduler.isDisplayMirroringPauseActive {
+            return "屏幕镜像中，休息提醒已暂停。当前工作计时停在 \(scheduler.formattedTime)。结束镜像后自动重新开始\(fullWorkCycleText)"
+        }
+        return scheduler.pauseStatusText ?? "Breather 已暂停"
     }
 
     private var shouldRotateSquare: Bool {
@@ -145,30 +217,44 @@ struct MenuBarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
+            Color.clear
+                .frame(height: 56)
+                .accessibilityHidden(true)
 
-            VStack(spacing: 14) {
-                Spacer(minLength: 20)
+            VStack(spacing: 0) {
+                Color.clear
+                    .frame(height: 26)
+                    .accessibilityHidden(true)
 
                 rotorButton
 
                 Text(scheduler.formattedTime)
-                    .font(.system(size: 42, weight: .medium, design: .monospaced))
+                    .font(.system(size: 40, weight: .medium, design: .monospaced))
                     .monospacedDigit()
                     .foregroundStyle(theme.text)
-                    .padding(.top, 2)
+                    .padding(.top, 12)
 
                 progressBlock
+                    .padding(.top, 18)
 
-                Spacer(minLength: 52)
+                if scheduler.isPaused {
+                    pauseContextRegion
+                } else {
+                    nextStepContextRegion
+                }
             }
             .padding(.horizontal, 26)
 
             actions
                 .padding(.horizontal, 26)
-                .padding(.bottom, 22)
+                .padding(.bottom, 30)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(width: 320, height: 420)
+        .overlay(alignment: .top) {
+            header
+                .accessibilitySortPriority(10)
+        }
         .background {
             ZStack {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -220,27 +306,53 @@ struct MenuBarView: View {
         .padding(.top, 24)
     }
 
+    @ViewBuilder
     private var rotorButton: some View {
-        Button(action: scheduler.togglePause) {
-            ZStack {
-                TimelineView(.animation) { timeline in
-                    square
-                        .rotationEffect(.degrees(rotationDegrees(at: timeline.date)))
-                }
-
-                Image(systemName: scheduler.isPaused ? "play.fill" : "pause.fill")
-                    .font(.system(size: scheduler.isPaused ? 15 : 14, weight: .bold))
-                    .foregroundStyle(squareAppearance.glyph)
-                    .symbolRenderingMode(.monochrome)
-                    .opacity(scheduler.isPaused || isHoveringRotor ? 1 : 0)
+        if scheduler.isDisplayMirroringPauseActive {
+            rotorContent
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(rotorAccessibilityLabel)
+                .help(rotorAccessibilityLabel)
+        } else {
+            Button(action: scheduler.togglePause) {
+                rotorContent
             }
-            .frame(width: 52, height: 52)
-            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .buttonStyle(.plain)
+            .accessibilityLabel(rotorAccessibilityLabel)
+            .help(rotorAccessibilityLabel)
+            .onHover { isHoveringRotor = $0 }
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(scheduler.isPaused ? "继续" : "暂停")
-        .help(scheduler.isPaused ? "继续" : "暂停")
-        .onHover { isHoveringRotor = $0 }
+    }
+
+    private var rotorContent: some View {
+        ZStack {
+            TimelineView(.animation) { timeline in
+                square
+                    .rotationEffect(.degrees(rotationDegrees(at: timeline.date)))
+            }
+
+            Image(systemName: rotorSystemImage)
+                .font(.system(size: scheduler.isPaused ? 15 : 14, weight: .bold))
+                .foregroundStyle(squareAppearance.glyph)
+                .symbolRenderingMode(.monochrome)
+                .opacity(scheduler.isPaused || isHoveringRotor ? 1 : 0)
+        }
+        .frame(width: 52, height: 52)
+        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var rotorSystemImage: String {
+        if scheduler.isDisplayMirroringPauseActive {
+            return "rectangle.on.rectangle"
+        }
+        return scheduler.isPaused ? "play.fill" : "pause.fill"
+    }
+
+    private var rotorAccessibilityLabel: String {
+        if scheduler.isDisplayMirroringPauseActive {
+            return "屏幕镜像中，结束镜像后自动重新开始完整工作周期"
+        }
+        return scheduler.isPaused ? "继续" : "暂停"
     }
 
     private var square: some View {
@@ -277,18 +389,162 @@ struct MenuBarView: View {
         .animation(.easeOut(duration: 0.35), value: progress)
     }
 
+    @ViewBuilder
     private var actions: some View {
-        HStack(spacing: 12) {
-            Button(action: scheduler.resetWorkCycle) {
-                Text("重置")
-            }
-            .buttonStyle(RotorActionButtonStyle(theme: theme, isPrimary: false))
+        if scheduler.isDisplayMirroringPauseActive {
+            mirrorRecoveryPanel
+        } else if scheduler.isUserPauseActive {
+            HStack(spacing: 12) {
+                PauseAutoResumeMenu(scheduler: scheduler, theme: theme)
 
-            Button(action: scheduler.startRestNow) {
-                Text("休息")
+                Button(action: scheduler.continueUserPause) {
+                    Text("继续计时")
+                }
+                .buttonStyle(RotorActionButtonStyle(theme: theme, isPrimary: true))
             }
-            .buttonStyle(RotorActionButtonStyle(theme: theme, isPrimary: true))
+        } else {
+            HStack(spacing: 12) {
+                Button(action: scheduler.resetWorkCycle) {
+                    Text("重置")
+                }
+                .buttonStyle(RotorActionButtonStyle(theme: theme, isPrimary: false))
+
+                Button(action: scheduler.startRestNow) {
+                    Text("休息")
+                }
+                .buttonStyle(RotorActionButtonStyle(theme: theme, isPrimary: true))
+            }
         }
+    }
+
+    private var pauseContextCard: some View {
+        HStack(alignment: .top, spacing: 11) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(theme.accent.opacity(0.18))
+
+                Image(systemName: scheduler.isDisplayMirroringPauseActive ? "rectangle.on.rectangle.fill" : "pause.fill")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(theme.accent)
+            }
+            .frame(width: 36, height: 36)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(scheduler.pauseContextTitle ?? "已暂停")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(theme.text)
+
+                if let detail = scheduler.pauseContextDetail {
+                    Text(detail)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(theme.accent)
+                }
+
+                if let footnote = scheduler.pauseContextFootnote {
+                    Text(footnote)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(theme.muted)
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(width: 268, alignment: .leading)
+        .background(theme.accent.opacity(0.09))
+        .overlay {
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .stroke(theme.accent.opacity(0.32), lineWidth: 1)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(pauseContextAccessibilityLabel)
+    }
+
+    private var pauseContextRegion: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 8)
+            pauseContextCard
+            Spacer(minLength: 8)
+        }
+        .frame(maxHeight: .infinity)
+    }
+
+    private var nextStepContextRegion: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 8)
+            nextStepPanel
+            Spacer(minLength: 8)
+        }
+        .frame(maxHeight: .infinity)
+    }
+
+    private var nextStepPanel: some View {
+        ZStack(alignment: .top) {
+            HStack(spacing: 10) {
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(theme.accent.opacity(0.64))
+                    .frame(width: 22)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(nextStepTitle)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(theme.text.opacity(0.72))
+                    Text(nextStepDetail)
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundStyle(theme.muted)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .frame(width: 268, height: 52)
+            .offset(y: 4)
+
+            Rectangle()
+                .fill(theme.accent.opacity(0.18))
+                .frame(height: 1)
+                .padding(.horizontal, 14)
+        }
+        .frame(width: 268, height: 52)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(nextStepTitle)，\(nextStepDetail)")
+    }
+
+    private var mirrorRecoveryPanel: some View {
+        ZStack(alignment: .top) {
+            HStack(spacing: 10) {
+                Image(systemName: "arrow.counterclockwise")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(theme.accent.opacity(0.64))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("结束镜像后自动重新开始")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(theme.text.opacity(0.72))
+                    Text(fullWorkCycleText)
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundStyle(theme.muted)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .offset(y: 4)
+
+            Rectangle()
+                .fill(theme.accent.opacity(0.18))
+                .frame(height: 1)
+                .padding(.horizontal, 14)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 52)
+        .accessibilityElement(children: .combine)
     }
 
     private func startSquareRotationIfNeeded() {
@@ -419,13 +675,133 @@ private struct IconButton: View {
             Image(systemName: systemName)
                 .font(.system(size: 15, weight: .semibold))
                 .symbolRenderingMode(.monochrome)
+                .foregroundStyle(color)
                 .frame(width: 32, height: 32)
                 .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
-        .foregroundStyle(color)
         .help(help)
         .accessibilityLabel(help)
+    }
+}
+
+private struct PauseAutoResumeMenu: View {
+    @ObservedObject var scheduler: BreakScheduler
+    let theme: RotorTheme
+
+    var body: some View {
+        Menu {
+            if let remainingSeconds = scheduler.pauseResumeRemainingSeconds {
+                Button("将在\(formattedDuration(remainingSeconds))后重新开始") { }
+                    .disabled(true)
+                Divider()
+            }
+
+            ForEach(PauseResumeDurationOption.allCases) { option in
+                Button("\(option.title)后重新开始") {
+                    scheduler.beginPauseAutoResume(
+                        until: Date().addingTimeInterval(option.duration)
+                    )
+                }
+            }
+
+            if scheduler.pauseResumeSession != nil {
+                Divider()
+                Button("取消自动恢复") {
+                    scheduler.cancelPauseAutoResume()
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(theme.text.opacity(0.86))
+
+                Text(labelTitle)
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                    .foregroundStyle(theme.text.opacity(0.86))
+
+                Spacer(minLength: 2)
+
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(theme.muted)
+            }
+            .padding(.horizontal, 11)
+            .frame(maxWidth: .infinity)
+            .frame(height: 42)
+            .background(theme.buttonBackground)
+            .overlay {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(theme.buttonBorder, lineWidth: 1)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .tint(theme.text.opacity(0.86))
+        .frame(maxWidth: .infinity)
+        .help("设置自动恢复时间")
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var labelTitle: String {
+        guard let remainingSeconds = scheduler.pauseResumeRemainingSeconds else {
+            return "自动恢复"
+        }
+        return "自动恢复 \(compactDuration(remainingSeconds))"
+    }
+
+    private var accessibilityLabel: String {
+        guard let remainingSeconds = scheduler.pauseResumeRemainingSeconds else {
+            return "设置暂停后自动恢复时间"
+        }
+        return "已设置在\(formattedDuration(remainingSeconds))后自动恢复，可修改时间"
+    }
+
+    private func compactDuration(_ seconds: Int) -> String {
+        let minutes = max(1, Int(ceil(Double(seconds) / 60.0)))
+        if minutes >= 60, minutes.isMultiple(of: 60) {
+            return "\(minutes / 60)h"
+        }
+        return "\(minutes)m"
+    }
+
+    private func formattedDuration(_ seconds: Int) -> String {
+        let minutes = max(1, Int(ceil(Double(seconds) / 60.0)))
+        if minutes >= 60, minutes.isMultiple(of: 60) {
+            return "\(minutes / 60) 小时"
+        }
+        return "\(minutes) 分钟"
+    }
+}
+
+private enum PauseResumeDurationOption: CaseIterable, Identifiable {
+    case thirtyMinutes
+    case oneHour
+    case twoHours
+    case fourHours
+
+    var id: Self { self }
+
+    var duration: TimeInterval {
+        switch self {
+        case .thirtyMinutes: 30 * 60
+        case .oneHour: 60 * 60
+        case .twoHours: 2 * 60 * 60
+        case .fourHours: 4 * 60 * 60
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .thirtyMinutes: "30 分钟"
+        case .oneHour: "1 小时"
+        case .twoHours: "2 小时"
+        case .fourHours: "4 小时"
+        }
     }
 }
 

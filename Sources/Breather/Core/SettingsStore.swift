@@ -6,6 +6,8 @@ final class SettingsStore: ObservableObject {
         didSet { saveRules() }
     }
 
+    @Published private(set) var currentCycleRules: BreakRules
+
     @Published var settings: AppSettings {
         didSet { saveSettings() }
     }
@@ -16,8 +18,18 @@ final class SettingsStore: ObservableObject {
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
-        self.rules = Self.load(BreakRules.self, key: rulesKey, from: userDefaults) ?? BreakRules()
+        let savedRules = Self.load(BreakRules.self, key: rulesKey, from: userDefaults) ?? BreakRules()
+        self.rules = savedRules
+        self.currentCycleRules = savedRules
         self.settings = Self.load(AppSettings.self, key: settingsKey, from: userDefaults) ?? AppSettings()
+    }
+
+    var hasPendingRuleChanges: Bool {
+        rules != currentCycleRules
+    }
+
+    func activateSavedRulesForCurrentCycle() {
+        currentCycleRules = rules
     }
 
     var workMinutes: Int {
