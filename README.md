@@ -20,6 +20,15 @@ Breather is a native macOS menu bar app that gently reminds you to take regular 
 
 ## Version History
 
+### 0.2.0 — Settings and Pause Refinements
+
+- Reorganized General, Schedule, and Rest Screen settings with native macOS controls and clearer hierarchy.
+- Added optional automatic timer pause for AirPlay and wired display mirroring, without treating a running meeting app as active sharing.
+- Improved pause and mirroring status presentation, including precise next-stage durations and recovery actions.
+- Fixed numeric-field editing and next-cycle rule application so unapplied values no longer leak into the current cycle.
+- Separated Xcode Debug notification identity from installed releases and added supported custom notification sounds.
+- Updated new-user defaults, including a 30-minute work cycle, segmented progress, and mirroring protection enabled.
+
 ### 0.1.0 — Initial Public Preview
 
 Breather 0.1.0 establishes the complete core break-reminder experience:
@@ -71,6 +80,8 @@ open Breather.xcodeproj
 
 Select the **Breather** scheme in Xcode, then press `Command + R`.
 
+Xcode Debug builds use the separate display name **Breather Debug** and bundle identifier `com.mercury.breather.debug`. Installed release builds keep `com.mercury.breather`, so their notification permissions and settings are intentionally independent.
+
 You can also build from the command line:
 
 ```sh
@@ -94,14 +105,25 @@ swift run Breather
 Create a compressed release DMG with:
 
 ```sh
-./scripts/build-dmg.sh 0.1.0
+./scripts/build-dmg.sh 0.2.0
 ```
 
 The resulting file is written to:
 
 ```text
-dist/Breather-0.1.0.dmg
+dist/Breather-0.2.0.dmg
 ```
+
+The script creates a Release archive, verifies the app and DMG, removes temporary DMG staging files, and unregisters Xcode's intermediate release app from LaunchServices.
+
+When testing a DMG, quit **Breather Debug**, copy Breather to Applications, eject the mounted DMG, and launch only `/Applications/Breather.app`. If a development Mac has accumulated older release registrations, review and reset them with:
+
+```sh
+./scripts/reset-local-release-registration.sh --dry-run
+./scripts/reset-local-release-registration.sh --apply
+```
+
+The reset script changes LaunchServices registration only. It never deletes an app or its settings.
 
 The `build/` and `dist/` directories contain generated files and are not committed to the repository.
 
@@ -116,6 +138,8 @@ Sources/Breather/Features/    Menu bar, settings, and rest overlay UI
 Sources/Breather/System/      Notifications, idle detection, and login item
 Sources/Breather/Resources/   App images, backgrounds, and sounds
 scripts/build-dmg.sh          DMG packaging script
+scripts/reset-local-release-registration.sh
+                              Local release-registration repair tool
 ```
 
 ## Status

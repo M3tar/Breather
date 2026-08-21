@@ -20,6 +20,15 @@ Breather 是一款原生 macOS 菜单栏休息提醒应用。它会在工作时�
 
 ## 版本记录
 
+### 0.2.0 — 设置与暂停体验改进
+
+- 重新整理“通用 / 计划 / 休息界面”设置，使用更符合 macOS 的原生控件和信息层级。
+- 支持在 AirPlay 或有线显示器镜像时自动暂停计时，不会仅因会议软件正在运行而误触发。
+- 完善暂停和镜像状态展示，精确显示下一阶段时长并提供清晰的恢复操作。
+- 修复数字输入框编辑和“下个周期生效”规则，未应用的新值不会提前出现在当前周期。
+- 为 Xcode Debug 使用独立通知身份，并加入系统支持格式的自定义通知声音。
+- 调整新用户默认配置，包括 30 分钟工作周期、分段进度条和默认开启镜像保护。
+
 ### 0.1.0 — 首个公开预览版
 
 Breather 0.1.0 已经包含一套完整的核心休息提醒体验：
@@ -71,6 +80,8 @@ open Breather.xcodeproj
 
 在 Xcode 中选择 **Breather** Scheme，然后按 `Command + R` 运行。
 
+Xcode Debug 构建使用独立名称 **Breather Debug** 和 Bundle ID `com.mercury.breather.debug`；安装版继续使用 `com.mercury.breather`。两者的通知权限和设置数据相互独立，这是预期行为。
+
 也可以使用命令行构建：
 
 ```sh
@@ -94,14 +105,25 @@ swift run Breather
 使用以下命令生成压缩的发布 DMG：
 
 ```sh
-./scripts/build-dmg.sh 0.1.0
+./scripts/build-dmg.sh 0.2.0
 ```
 
 生成的文件位于：
 
 ```text
-dist/Breather-0.1.0.dmg
+dist/Breather-0.2.0.dmg
 ```
+
+脚本会生成 Release 归档、验证应用和 DMG、自动删除 DMG 临时目录，并注销 Xcode 归档过程中产生的发布版中间应用。
+
+测试 DMG 时，请先退出 **Breather Debug**，把 Breather 拖入 Applications，推出已挂载的 DMG，然后只运行 `/Applications/Breather.app`。如果开发机积累了旧的发布版注册记录，可以先预览再执行清理：
+
+```sh
+./scripts/reset-local-release-registration.sh --dry-run
+./scripts/reset-local-release-registration.sh --apply
+```
+
+清理脚本只修改 LaunchServices 注册，不会删除应用或设置。
 
 `build/` 和 `dist/` 保存自动生成的文件，不会提交到 Git 仓库。
 
@@ -116,6 +138,8 @@ Sources/Breather/Features/    菜单栏、设置和休息界面
 Sources/Breather/System/      通知、空闲检测和登录项
 Sources/Breather/Resources/   图片、背景和声音资源
 scripts/build-dmg.sh          DMG 打包脚本
+scripts/reset-local-release-registration.sh
+                              本机发布版注册修复工具
 ```
 
 ## 项目状态
