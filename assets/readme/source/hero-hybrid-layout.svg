@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="540" viewBox="0 0 1200 540" role="img" aria-labelledby="title desc">
+  <title id="title">Breather hybrid hero layout</title>
+  <desc id="desc">Editable typography, shading, and screenshot frames for the Breather hybrid README hero.</desc>
+  <defs>
+    <linearGradient id="shade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#090d20" stop-opacity=".96"/>
+      <stop offset=".48" stop-color="#0b1024" stop-opacity=".82"/>
+      <stop offset=".76" stop-color="#0b1024" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#0b1024" stop-opacity=".12"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset=".38" stop-color="#06101c" stop-opacity="0"/>
+      <stop offset="1" stop-color="#06101c" stop-opacity=".72"/>
+    </linearGradient>
+    <linearGradient id="jade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#72d7bd"/>
+      <stop offset="1" stop-color="#42ae96"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14" result="blur"/>
+      <feOffset dy="12" result="offset"/>
+      <feColorMatrix in="offset" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .42 0"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="540" fill="url(#shade)"/>
+  <rect width="1200" height="540" fill="url(#floor)"/>
+  <circle cx="876" cy="215" r="190" fill="#68d2b3" opacity=".08"/>
+
+  <g id="screenshot-frames" filter="url(#shadow)">
+    <rect x="763" y="83" width="304" height="389" rx="28" fill="#dff9f1" opacity=".18" stroke="#e9fff9" stroke-opacity=".5" stroke-width="2"/>
+    <rect x="946" y="168" width="229" height="294" rx="26" fill="#1b1716" opacity=".74" stroke="#ffccb0" stroke-opacity=".34" stroke-width="2"/>
+  </g>
+
+  <g id="title-block" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <text x="143" y="63" fill="#a9c8d6" font-size="17" font-weight="700" letter-spacing="2.4">A QUIET macOS MENU BAR COMPANION</text>
+    <text x="72" y="191" fill="#f8fbff" font-size="86" font-weight="760" letter-spacing="-2.5">Breather</text>
+    <text x="74" y="249" fill="#f3fbff" font-size="34" font-weight="620">Focus deeply.</text>
+    <text x="74" y="292" fill="#7ed7bf" font-size="34" font-weight="620">Remember to breathe.</text>
+    <text x="74" y="344" fill="#bfced5" font-size="21" font-weight="480">A clear full-screen pause when the work cycle ends.</text>
+  </g>
+
+  <g id="rhythm" transform="translate(74 399)" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <rect width="180" height="54" rx="18" fill="#eefaf7" fill-opacity=".12" stroke="#dff9f1" stroke-opacity=".18"/>
+    <text x="18" y="22" fill="#9cb8c1" font-size="15" font-weight="700" letter-spacing="1.6">FOCUS</text>
+    <text x="86" y="38" fill="#f5fbff" font-size="27" font-weight="650">25:55</text>
+    <path d="M198 27H234" stroke="#79d5bd" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M224 18L235 27L224 36" fill="none" stroke="#79d5bd" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="254" width="180" height="54" rx="18" fill="#eef6ff" fill-opacity=".12" stroke="#e6f3ff" stroke-opacity=".18"/>
+    <text x="268" y="22" fill="#9cb8c1" font-size="14" font-weight="700" letter-spacing="1.2">BREATHE</text>
+    <text x="345" y="38" fill="#f5fbff" font-size="27" font-weight="650">00:28</text>
+    <circle cx="462" cy="27" r="5" fill="url(#jade)"/>
+    <text x="480" y="33" fill="#b5c9d0" font-size="18" font-weight="560">macOS 15+</text>
+  </g>
+
+  <text x="1128" y="508" text-anchor="end" fill="#dce7ed" opacity=".64" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" letter-spacing="1.2">REAL APP UI</text>
+</svg>

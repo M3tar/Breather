@@ -1,76 +1,103 @@
-# Breather
+<p align="center">
+  <img src="assets/readme/hero-hybrid.png" width="100%" alt="Breather balances focused work and intentional rest on macOS">
+</p>
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+<p align="center">
+  <a href="README.md"><strong>English</strong></a> · <a href="README.zh-CN.md">简体中文</a>
+  <br><br>
+  <a href="https://github.com/M3tar/Breather/releases/latest"><strong>Download the latest Breather DMG</strong></a>
+</p>
 
-Breather is a native macOS menu bar app that gently reminds you to take regular breaks. It stays out of the way while you work, then presents a focused full-screen rest overlay when it is time to pause.
+Breather is a quiet macOS menu bar companion for people who can focus deeply—and sometimes forget to stop. It keeps the work timer close, then turns break time into a clear full-screen pause across every connected display.
 
-## Features
+## See your rhythm
 
-- Menu bar countdown with start, pause, reset, and rest-now actions.
-- Configurable work and short-break schedules.
-- Full-screen rest overlays across multiple displays.
-- Solid, moon, and sun rest backgrounds.
-- Snooze, skip, and make-up rest flows.
-- Reminders after several skipped or snoozed breaks.
-- Configurable menu bar appearance, theme, progress style, and icon.
-- Rest notifications and start/end sounds.
-- Idle detection that can treat time away from the Mac as a completed rest.
-- Optional launch at login using the native macOS login-item service.
-- Light, dark, and system appearance modes.
+The menu bar popover keeps the current stage, remaining time, and next action together. A manual pause or mirrored display preserves the active timer instead of silently resetting it.
 
-## Version History
+<p align="center">
+  <img src="screenshots/timer-popover-running-jade.jpg" width="31%" alt="Breather running a focused work timer">
+  <img src="screenshots/timer-popover-mirroring-light.jpg" width="31%" alt="Breather automatically paused during display mirroring">
+  <img src="screenshots/timer-popover-paused-jade.jpg" width="31%" alt="Breather manually paused with a clear resume action">
+</p>
 
-### 0.2.0 — Settings and Pause Refinements
+## Step away from the screen
 
-- Reorganized General, Schedule, and Rest Screen settings with native macOS controls and clearer hierarchy.
-- Added optional automatic timer pause for AirPlay and wired display mirroring, without treating a running meeting app as active sharing.
-- Improved pause and mirroring status presentation, including precise next-stage durations and recovery actions.
-- Fixed numeric-field editing and next-cycle rule application so unapplied values no longer leak into the current cycle.
-- Separated Xcode Debug notification identity from installed releases and added supported custom notification sounds.
-- Updated new-user defaults, including a 30-minute work cycle, segmented progress, and mirroring protection enabled.
+When a cycle ends, Breather replaces another dismissible notification with an intentional visual pause. Choose a calm background, a short prompt, and how much information you want to keep on screen.
 
-### 0.1.0 — Initial Public Preview
+![Breather full-screen rest countdown over a moonlit landscape](screenshots/rest-overlay-moon.jpg)
 
-Breather 0.1.0 establishes the complete core break-reminder experience:
+## A natural cycle, not a productivity contest
 
-- Menu bar countdown with pause, resume, reset, and rest-now actions.
-- Configurable work duration, short-break duration, pre-break notification timing, and idle threshold.
-- Full-screen rest countdowns across every connected display.
-- Solid, moon, and sun backgrounds, with customizable prompts, supporting text, translucency, and transitions.
-- Snooze, skip, Esc-to-skip, and follow-up reminders after repeatedly missed breaks.
-- Idle detection that recognizes time away from the Mac as a completed rest.
-- Separate sounds for pre-break notifications, rest start, and rest completion.
-- Custom menu bar icons, theme colors, progress styles, and center-square styles.
-- Light, dark, and system appearance modes, automatic settings persistence, and optional launch at login.
-- A universal DMG for both Apple silicon and Intel Macs.
+1. **Focus quietly.** A configurable timer stays in the menu bar while you work.
+2. **Breathe clearly.** Every connected display enters the same full-screen rest countdown.
+3. **Return naturally.** Breather starts the next cycle without scores, streaks, or pressure.
 
-See the [0.1.0 release notes](https://github.com/M3tar/Breather/releases/tag/v0.1.0) for the product overview and installation notes.
+Breather also understands some of the interruptions around real work: idle time can count as a completed rest, missed breaks can produce a later recovery nudge, and AirPlay or wired display mirroring can pause the timer automatically.
 
-## Requirements
+### The essentials
 
-- macOS 15 or later.
-- Xcode with the macOS 15 SDK to build from source.
+- Start, pause, reset, or begin a break directly from the menu bar.
+- Configure work time, short breaks, pre-break notices, snooze, and skip behavior.
+- Pick a solid, moon, or sun rest background and separate sounds for each stage.
+- Choose light, dark, or system appearance, progress style, theme color, and menu bar icon.
+- Apply schedule changes now or safely defer them until the next cycle.
+- Optionally launch at login and protect active timers during display mirroring.
 
-## Download
+## Native settings, kept calm
 
-Published builds are available from [GitHub Releases](https://github.com/M3tar/Breather/releases).
+General, schedule, and rest-screen settings use native macOS controls and keep related choices together. You can preview the rest screen before it interrupts a real work cycle.
 
-Download the DMG for the version you want, open it, and drag **Breather** into the **Applications** folder.
+![Breather General settings](screenshots/settings-general.jpg)
 
-Early releases may not yet be signed with an Apple Developer ID or notarized by Apple. In that case, macOS may show a security warning when the app is opened for the first time. Review the release notes before installing a build.
+<p align="center">
+  <img src="screenshots/settings-theme-picker.jpg" width="48%" alt="Breather theme picker with several color tokens">
+  <img src="screenshots/settings-menu-bar-icon-picker.jpg" width="48%" alt="Breather menu bar icon picker">
+</p>
 
-If macOS blocks an unsigned release and you have verified that it came from this repository:
+## Download and install
 
-1. Try to open **Breather** once, then close the warning.
-2. Open **System Settings** and select **Privacy & Security**.
-3. Scroll down to **Security** and click **Open Anyway** for Breather.
-4. Confirm by clicking **Open** in the next dialog.
+Breather requires **macOS 15 or later**. The universal DMG supports both Apple silicon and Intel Macs.
 
-The **Open Anyway** button is available for about one hour after the blocked launch attempt. Only override this protection for a build you trust. See [Apple's guidance on opening an app from an unidentified developer](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unknown-developer-mh40616/mac).
+1. Download the latest DMG from [GitHub Releases](https://github.com/M3tar/Breather/releases).
+2. Open it and drag **Breather** into **Applications**.
+3. Launch Breather from Applications.
 
-## Build and Run
+> [!IMPORTANT]
+> Breather is an early pre-release and is not yet signed with an Apple Developer ID or notarized by Apple. Install only a build downloaded from this repository.
 
-Clone the repository and open the Xcode project:
+If macOS blocks the first launch, try opening Breather once, then go to **System Settings → Privacy & Security → Security** and choose **Open Anyway**. Apple keeps this option available for roughly one hour after the blocked attempt. See [Apple's guidance](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unknown-developer-mh40616/mac) for details.
+
+## Known boundary
+
+Display mirroring protection covers **AirPlay mirroring and wired mirrored displays**. Breather does not currently detect software-only screen sharing inside meeting apps. Several approaches were explored, but none proved reliable enough, so automatic pausing for meeting-app screen sharing is on hold for now.
+
+## Project structure
+
+```text
+Breather/
+├── Breather.xcodeproj/          Xcode project and app targets
+├── Package.swift                Swift Package executable and test target
+├── Sources/Breather/
+│   ├── App/                     App lifecycle and entry points
+│   ├── Core/                    Settings, break rules, and scheduling
+│   ├── Features/
+│   │   ├── MenuBar/             Timer popover and menu bar controller
+│   │   ├── RestOverlay/         Full-screen rest view and windows
+│   │   └── Settings/            General, schedule, and overlay settings
+│   ├── System/                  Idle, mirroring, notifications, sounds, login
+│   └── Resources/               App icons, backgrounds, and sound files
+├── Tests/BreatherTests/         Scheduler, settings, and UI regression tests
+├── scripts/                     Build, DMG, release, and sync tooling
+├── screenshots/                 README product screenshots
+├── planning/                    Product requirements and release plans
+└── notes/                       Development decisions and test guides
+```
+
+The scheduler and settings model live in `Core`; macOS integrations stay in `System`; interface code is grouped by feature. This keeps time rules testable without pulling window or menu bar behavior into the same layer.
+
+## Build from source
+
+Clone the repository, open `Breather.xcodeproj`, select the **Breather** scheme, and press `Command + R`:
 
 ```sh
 git clone git@github.com:M3tar/Breather.git
@@ -78,11 +105,18 @@ cd Breather
 open Breather.xcodeproj
 ```
 
-Select the **Breather** scheme in Xcode, then press `Command + R`.
+Xcode Debug builds use the display name **Breather Debug** and bundle identifier `com.mercury.breather.debug`. Installed releases use `com.mercury.breather`, so their settings and notification permissions remain independent.
 
-Xcode Debug builds use the separate display name **Breather Debug** and bundle identifier `com.mercury.breather.debug`. Installed release builds keep `com.mercury.breather`, so their notification permissions and settings are intentionally independent.
+You can also start the Swift Package executable with:
 
-You can also build from the command line:
+```sh
+swift run Breather
+```
+
+<details>
+<summary><strong>Command-line build and DMG tooling</strong></summary>
+
+Build the Xcode project from the command line:
 
 ```sh
 xcodebuild \
@@ -94,60 +128,30 @@ xcodebuild \
   build
 ```
 
-The repository also includes a Swift Package executable for quick development runs:
-
-```sh
-swift run Breather
-```
-
-## Build a DMG
-
-Create a compressed release DMG with:
+Create a compressed release DMG:
 
 ```sh
 ./scripts/build-dmg.sh 0.2.0
 ```
 
-The resulting file is written to:
-
-```text
-dist/Breather-0.2.0.dmg
-```
-
-The script creates a Release archive, verifies the app and DMG, removes temporary DMG staging files, and unregisters Xcode's intermediate release app from LaunchServices.
-
-When testing a DMG, quit **Breather Debug**, copy Breather to Applications, eject the mounted DMG, and launch only `/Applications/Breather.app`. If a development Mac has accumulated older release registrations, review and reset them with:
+The artifact is written to `dist/Breather-0.2.0.dmg`. On a development Mac with stale release registrations, inspect and repair LaunchServices with:
 
 ```sh
 ./scripts/reset-local-release-registration.sh --dry-run
 ./scripts/reset-local-release-registration.sh --apply
 ```
 
-The reset script changes LaunchServices registration only. It never deletes an app or its settings.
+The repair tool only changes LaunchServices registration; it never deletes an app or its settings.
 
-The `build/` and `dist/` directories contain generated files and are not committed to the repository.
+</details>
 
-## Project Structure
+## Releases
 
-```text
-Breather.xcodeproj/           Xcode project
-Package.swift                 Swift Package configuration
-Sources/Breather/App/         App lifecycle and entry points
-Sources/Breather/Core/        Settings, rules, and scheduling
-Sources/Breather/Features/    Menu bar, settings, and rest overlay UI
-Sources/Breather/System/      Notifications, idle detection, and login item
-Sources/Breather/Resources/   App images, backgrounds, and sounds
-scripts/build-dmg.sh          DMG packaging script
-scripts/reset-local-release-registration.sh
-                              Local release-registration repair tool
-```
+- **[0.2.0](https://github.com/M3tar/Breather/releases/tag/v0.2.0)** — Native settings redesign, display-mirroring protection, clearer pause states, safer next-cycle settings, and more reliable notifications.
+- **[0.1.0](https://github.com/M3tar/Breather/releases/tag/v0.1.0)** — Initial public preview with the complete timer and full-screen rest experience.
 
-## Status
-
-Breather is under active development. Interfaces, settings, and release behavior may change before version 1.0.
+Breather is under active development. Interfaces, settings, and distribution details may change before 1.0.
 
 ## License
 
-The Breather source code is available under the [MIT License](LICENSE).
-
-The original Breather icons are created by M3tar. Copyright in the included sound effects and background images remains with their respective rights holders. These assets are not covered by the MIT License that applies to the Breather source code.
+Breather source code is available under the [MIT License](LICENSE). The original Breather icons were created by M3tar. Copyright in the included sound effects and background images remains with their respective rights holders; those assets are not covered by the source-code license.

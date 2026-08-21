@@ -1,76 +1,103 @@
-# Breather
+<p align="center">
+  <img src="assets/readme/hero-hybrid-zh-cn.png" width="100%" alt="Breather 在 macOS 上平衡专注工作与主动休息">
+</p>
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+<p align="center">
+  <a href="README.md">English</a> · <a href="README.zh-CN.md"><strong>简体中文</strong></a>
+  <br><br>
+  <a href="https://github.com/M3tar/Breather/releases/latest"><strong>下载最新版 Breather DMG</strong></a>
+</p>
 
-Breather 是一款原生 macOS 菜单栏休息提醒应用。它会在工作时安静地显示倒计时，并在需要休息时呈现专注、清晰的全屏休息界面，帮助你暂时离开屏幕。
+Breather 是一款安静待在 macOS 菜单栏里的休息提醒应用，写给那些能够长时间专注、却偶尔忘记停下来的人。工作时，它只在近处记录节奏；休息时，它会在每一台显示器上呈现清晰的全屏停顿。
 
-## 功能特点
+## 工作节奏，一眼看清
 
-- 菜单栏倒计时，支持开始、暂停、重置和立即休息。
-- 可配置工作时长和短休息计划。
-- 在多个显示器上显示全屏休息界面。
-- 支持纯色、月亮和太阳休息背景。
-- 支持延后补休和跳过休息。
-- 连续多次延后或跳过后显示额外提醒。
-- 可配置菜单栏外观、主题色、进度样式和图标。
-- 支持休息通知以及进入、结束休息时的提示音。
-- 支持空闲检测，可将离开电脑的时间视为已经休息。
-- 使用 macOS 原生登录项能力，可选择开机自动启动。
-- 支持浅色、深色和跟随系统外观。
+菜单栏弹窗集中展示当前阶段、剩余时间和下一步操作。无论手动暂停还是进入显示器镜像，当前工作计时都会被保留，而不是在后台悄悄重置。
 
-## 版本记录
+<p align="center">
+  <img src="screenshots/timer-popover-running-jade.jpg" width="31%" alt="Breather 正在进行专注工作计时">
+  <img src="screenshots/timer-popover-mirroring-light.jpg" width="31%" alt="Mac 进入显示器镜像后 Breather 自动暂停计时">
+  <img src="screenshots/timer-popover-paused-jade.jpg" width="31%" alt="Breather 手动暂停状态与继续计时操作">
+</p>
 
-### 0.2.0 — 设置与暂停体验改进
+## 到时间，就真正离开屏幕
 
-- 重新整理“通用 / 计划 / 休息界面”设置，使用更符合 macOS 的原生控件和信息层级。
-- 支持在 AirPlay 或有线显示器镜像时自动暂停计时，不会仅因会议软件正在运行而误触发。
-- 完善暂停和镜像状态展示，精确显示下一阶段时长并提供清晰的恢复操作。
-- 修复数字输入框编辑和“下个周期生效”规则，未应用的新值不会提前出现在当前周期。
-- 为 Xcode Debug 使用独立通知身份，并加入系统支持格式的自定义通知声音。
-- 调整新用户默认配置，包括 30 分钟工作周期、分段进度条和默认开启镜像保护。
+一个周期结束后，Breather 不会再递上一条随手就能忽略的通知，而是创造一次明确的视觉停顿。你可以选择安静的背景、简短的提示语，以及希望在屏幕上保留多少信息。
 
-### 0.1.0 — 首个公开预览版
+![月夜山景上的 Breather 全屏休息倒计时](screenshots/rest-overlay-moon.jpg)
 
-Breather 0.1.0 已经包含一套完整的核心休息提醒体验：
+## 自然循环，而不是效率竞赛
 
-- 菜单栏倒计时，支持暂停、继续、重置和立即休息。
-- 可设置工作时长、短休息时长、休息前通知时间和空闲阈值。
-- 在所有已连接的显示器上显示全屏休息倒计时。
-- 提供纯色、月亮和太阳背景，并可自定义提示语、辅助文案、半透明效果和过渡动画。
-- 支持延后休息、跳过休息、使用 Esc 跳过，以及连续错过休息后的补充提醒。
-- 自动识别离开电脑的空闲时间，并将其视为已经完成休息。
-- 可分别设置休息前通知、休息开始和休息结束提示音。
-- 可自定义菜单栏图标、主题颜色、进度样式和中心方块样式。
-- 支持浅色、深色和跟随系统外观，设置自动保存，并可选择登录时自动启动。
-- 提供同时兼容 Apple 芯片和 Intel Mac 的通用 DMG 安装包。
+1. **安静专注。** 可调整的计时器在菜单栏里陪你工作。
+2. **清楚休息。** 每一台显示器同步进入全屏休息倒计时。
+3. **自然回来。** 不用追逐分数或连续纪录，准备好后再开始下个周期。
 
-产品介绍和安装注意事项请参阅 [0.1.0 发布说明](https://github.com/M3tar/Breather/releases/tag/v0.1.0)。
+Breather 也会理解真实工作中的一些打断：离开电脑的空闲时间可以算作已完成休息；错过休息后可以稍晚提醒补休；使用 AirPlay 或有线显示器镜像时，也可以自动暂停当前计时。
 
-## 系统要求
+### 核心功能
 
-- macOS 15 或更高版本。
-- 从源码构建需要带有 macOS 15 SDK 的 Xcode。
+- 直接从菜单栏开始、暂停、重置计时，或立即进入休息。
+- 调整工作时长、短休息、休息前通知、延后和跳过行为。
+- 选择纯色、月亮或太阳休息背景，并为不同阶段设置声音。
+- 自定义浅色、深色或跟随系统外观、进度样式、主题色与菜单栏图标。
+- 计划设置可以立即应用，也可以安全地留到下个周期生效。
+- 支持登录时启动，以及显示器镜像期间的计时保护。
 
-## 下载安装
+## 原生设置，保持安静
 
-已经发布的版本可以在 [GitHub Releases](https://github.com/M3tar/Breather/releases) 页面下载。
+“通用 / 计划 / 休息界面”使用 macOS 原生控件，并把相互关联的选项放在一起。你还可以先预览休息界面，再决定是否用于真实的工作周期。
 
-下载所需版本的 DMG，打开后将 **Breather** 拖入 **Applications（应用程序）** 文件夹即可。
+![Breather 通用设置界面](screenshots/settings-general.jpg)
 
-早期版本可能尚未使用 Apple Developer ID 签名，也可能尚未通过 Apple 公证。第一次打开时，macOS 可能显示安全提示。安装前请先查看对应版本的发布说明。
+<p align="center">
+  <img src="screenshots/settings-theme-picker.jpg" width="48%" alt="包含多种颜色 Token 的 Breather 主题选择器">
+  <img src="screenshots/settings-menu-bar-icon-picker.jpg" width="48%" alt="Breather 菜单栏图标选择器">
+</p>
 
-如果 macOS 阻止打开未签名版本，并且你已经确认安装包来自本仓库：
+## 下载与安装
 
-1. 先尝试打开一次 **Breather**，然后关闭系统警告。
-2. 打开 **系统设置**，进入 **隐私与安全性**。
-3. 向下滚动到 **安全性**，找到 Breather 并点击 **仍要打开**。
-4. 在随后出现的确认窗口中点击 **打开**。
+Breather 需要 **macOS 15 或更高版本**。通用 DMG 同时支持 Apple 芯片和 Intel Mac。
 
-“仍要打开”按钮通常只会在应用被阻止后的一小时内出现。仅对来源可信的安装包执行此操作。详情参见 [Apple 关于打开身份不明开发者应用的说明](https://support.apple.com/zh-cn/guide/mac-help/open-a-mac-app-from-an-unknown-developer-mh40616/mac)。
+1. 前往 [GitHub Releases](https://github.com/M3tar/Breather/releases) 下载最新 DMG。
+2. 打开 DMG，将 **Breather** 拖入 **Applications（应用程序）**。
+3. 从应用程序文件夹启动 Breather。
 
-## 从源码构建和运行
+> [!IMPORTANT]
+> Breather 目前仍是早期预览版本，尚未使用 Apple Developer ID 签名，也未通过 Apple 公证。请只安装从本仓库下载的版本。
 
-克隆仓库并打开 Xcode 工程：
+如果 macOS 阻止第一次启动，请先尝试打开一次 Breather，然后进入 **系统设置 → 隐私与安全性 → 安全性**，点击 **仍要打开**。这个选项通常会在应用被阻止后保留约一小时。详情可查看 [Apple 的相关说明](https://support.apple.com/zh-cn/guide/mac-help/open-a-mac-app-from-an-unknown-developer-mh40616/mac)。
+
+## 当前边界
+
+显示器镜像保护支持 **AirPlay 镜像和有线显示器镜像**。Breather 目前无法识别会议软件内部的软件共享屏幕。项目尝试过多种方案，但都无法达到足够可靠的效果，因此“识别会议共享投屏后自动暂停”功能暂时搁置。
+
+## 项目结构
+
+```text
+Breather/
+├── Breather.xcodeproj/          Xcode 工程与应用 Target
+├── Package.swift                Swift Package 可执行目标与测试目标
+├── Sources/Breather/
+│   ├── App/                     应用生命周期与入口
+│   ├── Core/                    设置、休息规则与计时调度
+│   ├── Features/
+│   │   ├── MenuBar/             计时弹窗与菜单栏控制器
+│   │   ├── RestOverlay/         全屏休息界面与窗口
+│   │   └── Settings/            通用、计划与休息界面设置
+│   ├── System/                  空闲、镜像、通知、声音与登录项
+│   └── Resources/               应用图标、背景与声音文件
+├── Tests/BreatherTests/         调度、设置与界面回归测试
+├── scripts/                     构建、DMG、发布与同步工具
+├── screenshots/                 README 产品截图
+├── planning/                    产品需求与发布计划
+└── notes/                       开发决策与测试指南
+```
+
+调度器和设置模型位于 `Core`，macOS 系统集成集中在 `System`，界面代码按功能拆分。这样可以单独测试时间规则，而不必把窗口或菜单栏行为混入同一层。
+
+## 从源码构建
+
+克隆仓库并打开 `Breather.xcodeproj`，在 Xcode 中选择 **Breather** Scheme，然后按 `Command + R`：
 
 ```sh
 git clone git@github.com:M3tar/Breather.git
@@ -78,11 +105,18 @@ cd Breather
 open Breather.xcodeproj
 ```
 
-在 Xcode 中选择 **Breather** Scheme，然后按 `Command + R` 运行。
+Xcode Debug 构建使用独立名称 **Breather Debug** 和 Bundle ID `com.mercury.breather.debug`；安装版使用 `com.mercury.breather`。两者的设置和通知权限相互独立，这是预期行为。
 
-Xcode Debug 构建使用独立名称 **Breather Debug** 和 Bundle ID `com.mercury.breather.debug`；安装版继续使用 `com.mercury.breather`。两者的通知权限和设置数据相互独立，这是预期行为。
+也可以直接运行 Swift Package 可执行目标：
 
-也可以使用命令行构建：
+```sh
+swift run Breather
+```
+
+<details>
+<summary><strong>命令行构建与 DMG 工具</strong></summary>
+
+使用命令行构建 Xcode 工程：
 
 ```sh
 xcodebuild \
@@ -94,62 +128,30 @@ xcodebuild \
   build
 ```
 
-仓库仍然提供 Swift Package 可执行目标，方便开发时快速运行：
-
-```sh
-swift run Breather
-```
-
-## 构建 DMG
-
-使用以下命令生成压缩的发布 DMG：
+生成压缩的发布 DMG：
 
 ```sh
 ./scripts/build-dmg.sh 0.2.0
 ```
 
-生成的文件位于：
-
-```text
-dist/Breather-0.2.0.dmg
-```
-
-脚本会生成 Release 归档、验证应用和 DMG、自动删除 DMG 临时目录，并注销 Xcode 归档过程中产生的发布版中间应用。
-
-测试 DMG 时，请先退出 **Breather Debug**，把 Breather 拖入 Applications，推出已挂载的 DMG，然后只运行 `/Applications/Breather.app`。如果开发机积累了旧的发布版注册记录，可以先预览再执行清理：
+安装包会写入 `dist/Breather-0.2.0.dmg`。如果开发机积累了旧的发布版注册记录，可以检查并修复 LaunchServices：
 
 ```sh
 ./scripts/reset-local-release-registration.sh --dry-run
 ./scripts/reset-local-release-registration.sh --apply
 ```
 
-清理脚本只修改 LaunchServices 注册，不会删除应用或设置。
+修复工具只会修改 LaunchServices 注册，不会删除应用或设置。
 
-`build/` 和 `dist/` 保存自动生成的文件，不会提交到 Git 仓库。
+</details>
 
-## 项目结构
+## 版本记录
 
-```text
-Breather.xcodeproj/           Xcode 工程
-Package.swift                 Swift Package 配置
-Sources/Breather/App/         App 生命周期与入口
-Sources/Breather/Core/        设置、规则和计时调度
-Sources/Breather/Features/    菜单栏、设置和休息界面
-Sources/Breather/System/      通知、空闲检测和登录项
-Sources/Breather/Resources/   图片、背景和声音资源
-scripts/build-dmg.sh          DMG 打包脚本
-scripts/reset-local-release-registration.sh
-                              本机发布版注册修复工具
-```
+- **[0.2.0](https://github.com/M3tar/Breather/releases/tag/v0.2.0)** — 原生设置界面重构、显示器镜像保护、更清晰的暂停状态、更安全的下周期设置，以及更可靠的通知。
+- **[0.1.0](https://github.com/M3tar/Breather/releases/tag/v0.1.0)** — 首个公开预览版，包含完整计时与全屏休息体验。
 
-## 项目状态
-
-Breather 目前仍在持续开发中。在 1.0 版本之前，界面、设置和发布方式都可能发生变化。
+Breather 仍在持续开发中。在 1.0 版本之前，界面、设置和分发方式都可能发生变化。
 
 ## 许可证
 
-Breather 源代码采用 [MIT License](LICENSE) 开源。
-
-Breather 原创图标由 M3tar 绘制。
-
-相关声音和背景图片的版权归各自原权利人所有。这些素材不适用 Breather 源代码所采用的 MIT License。
+Breather 源代码采用 [MIT License](LICENSE) 开源。Breather 原创图标由 M3tar 绘制；内置声音与背景图片的版权归各自权利人所有，这些素材不适用于源代码所采用的许可证。
