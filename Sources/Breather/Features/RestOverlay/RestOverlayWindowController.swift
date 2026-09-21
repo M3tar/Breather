@@ -1,202 +1,284 @@
 import AppKit
+import Combine
 import QuartzCore
 import SwiftUI
+
+struct RestOverlayScreen: Equatable {
+    let id: UInt32
+    let frame: CGRect
+
+    @MainActor static var connected: [Self] {
+        NSScreen.screens.compactMap { screen in
+            guard let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? UInt32 else { return nil }
+            return Self(id: id, frame: screen.frame)
+        }
+    }
+}
 
 @MainActor
 final class RestOverlayWindowController {
     private let scheduler: BreakScheduler
     private let onSnooze: () -> Void
     private let onSkip: () -> Void
-    private var windows: [NSPanel] = []
-    private var dismissalState: RestOverlayDismissalState?
+    private let screens: () -> [RestOverlayScreen]
+    private let mouseLocation: () -> CGPoint
+    private let reduceMotion: () -> Bool
+    private let presentsWindows: Bool
+    private(set) var windows: [UInt32: NSPanel] = [:]
+    private(set) var session: RestOverlaySession?
+    // Focus routing only; every display renders the same animated session.
+    private(set) var keyboardScreenID: UInt32?
     private var keyMonitor: Any?
     private var previewTask: Task<Void, Never>?
+    private var cancellables: Set<AnyCancellable> = []
+    let availability: RestOverlayAvailability
 
-    init(scheduler: BreakScheduler, onSnooze: @escaping () -> Void, onSkip: @escaping () -> Void) {
+    init(
+        scheduler: BreakScheduler, onSnooze: @escaping () -> Void, onSkip: @escaping () -> Void,
+        availability: RestOverlayAvailability = RestOverlayAvailability(),
+        screens: @escaping () -> [RestOverlayScreen] = { RestOverlayScreen.connected },
+        mouseLocation: @escaping () -> CGPoint = { NSEvent.mouseLocation },
+        reduceMotion: @escaping () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion },
+        presentsWindows: Bool = true
+    ) {
         self.scheduler = scheduler
         self.onSnooze = onSnooze
         self.onSkip = onSkip
+        self.availability = availability
+        self.screens = screens
+        self.mouseLocation = mouseLocation
+        self.reduceMotion = reduceMotion
+        self.presentsWindows = presentsWindows
+
+        scheduler.$state.sink { [weak availability] state in
+            availability?.isResting = state == .resting
+        }.store(in: &cancellables)
+        scheduler.$remainingSeconds.sink { [weak self] seconds in
+            guard let self, self.scheduler.isResting, let session = self.session,
+                  session.kind == .rest else { return }
+            session.updateRemaining(seconds)
+        }.store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
+            .sink { [weak self] _ in self?.reconcileScreens() }
+            .store(in: &cancellables)
+        let workspace = NSWorkspace.shared.notificationCenter
+        workspace.publisher(for: NSWorkspace.willSleepNotification)
+            .merge(with: workspace.publisher(for: NSWorkspace.sessionDidResignActiveNotification))
+            .sink { [weak self] _ in self?.session?.setAnimationPaused(true) }
+            .store(in: &cancellables)
+        workspace.publisher(for: NSWorkspace.didWakeNotification)
+            .merge(with: workspace.publisher(for: NSWorkspace.sessionDidBecomeActiveNotification))
+            .sink { [weak self] _ in self?.session?.setAnimationPaused(false) }
+            .store(in: &cancellables)
     }
 
     func show() {
+        guard scheduler.isResting else { return }
         hide(animated: false)
-        let copy = RestOverlayCopy(
-            settings: scheduler.settingsStore.settings,
+        session = RestOverlaySession(
+            kind: .rest, settings: scheduler.settingsStore.settings,
+            totalSeconds: Int(scheduler.settingsStore.currentCycleRules.shortBreakDuration),
+            remainingSeconds: scheduler.remainingSeconds,
             showsRecoveryNudge: scheduler.shouldShowRecoveryNudge
         )
-        let dismissalState = RestOverlayDismissalState()
-        self.dismissalState = dismissalState
-
-        showWindows {
-            RestOverlayView(
-                scheduler: self.scheduler,
-                dismissalState: dismissalState,
-                copy: copy,
-                onSnooze: { [weak self] in
-                    self?.snoozeFromOverlay()
-                },
-                onSkip: { [weak self] in
-                    self?.skipFromOverlay()
-                }
-            )
-        }
-
-        showVisibleWindows()
-        installEscapeMonitor()
+        present()
     }
 
     func preview() {
+        guard !scheduler.isResting else { return }
         hide(animated: false)
-        let copy = RestOverlayCopy(settings: scheduler.settingsStore.settings)
-        let dismissalState = RestOverlayDismissalState()
-        self.dismissalState = dismissalState
-
-        showWindows {
-            RestOverlayPreviewView(
-                dismissalState: dismissalState,
-                copy: copy,
-                background: self.scheduler.settingsStore.settings.restOverlayBackground,
-                translucentBackground: self.scheduler.settingsStore.settings.restOverlayTranslucentBackground,
-                onClose: { [weak self] in
-                    self?.hide()
+        let preview = RestOverlaySession(
+            kind: .preview, settings: scheduler.settingsStore.settings,
+            totalSeconds: Int(scheduler.settingsStore.rules.shortBreakDuration)
+        )
+        session = preview
+        present()
+        previewTask = Task { @MainActor [weak self, weak preview] in
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
+                guard !Task.isCancelled, let self, let preview,
+                      self.session?.id == preview.id else { return }
+                preview.updatePreview()
+                if preview.remainingSeconds == 0 {
+                    self.closePresentation(id: preview.id)
+                    return
                 }
-            )
-        }
-
-        showVisibleWindows()
-        previewTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(5))
-            await MainActor.run {
-                self?.hide()
             }
         }
     }
 
-    func hide() {
-        hide(animated: scheduler.settingsStore.settings.restOverlayFadeAnimation)
+    /// A scheduler transition must not dismiss an unrelated preview.
+    func hideRest() {
+        guard session?.kind == .rest else { return }
+        hide()
+    }
+
+    func hide() { hide(animated: session?.fadeAnimation == true && !reduceMotion()) }
+
+    func closePresentation(id: UUID) {
+        guard session?.id == id else { return }
+        hide()
+    }
+
+    func shutdown() {
+        hide(animated: false)
+        cancellables.removeAll()
+    }
+
+    private func present() {
+        guard session != nil else { return }
+        let connected = screens()
+        keyboardScreenID = connected.first { $0.frame.contains(mouseLocation()) }?.id ?? connected.first?.id
+        reconcileScreens()
+        installEscapeMonitor()
+    }
+
+    /// Reuses the same session and clock across display hot-plug and resolution changes.
+    func reconcileScreens() {
+        guard let session else { return }
+        let connected = screens()
+        let ids = Set(connected.map(\.id))
+        for id in Array(windows.keys) where !ids.contains(id) {
+            if let window = windows.removeValue(forKey: id) { close([window]) }
+        }
+        if !ids.contains(keyboardScreenID ?? UInt32.max) {
+            keyboardScreenID = connected.first?.id
+        }
+        for screen in connected {
+            if let window = windows[screen.id] {
+                window.setFrame(screen.frame, display: true)
+            } else {
+                let panel = OverlayPanel(
+                    contentRect: screen.frame, styleMask: [.borderless, .nonactivatingPanel],
+                    backing: .buffered, defer: false
+                )
+                panel.isReleasedWhenClosed = false
+                panel.level = .screenSaver
+                panel.backgroundColor = .clear
+                panel.isOpaque = false
+                panel.hasShadow = false
+                panel.hidesOnDeactivate = false
+                panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+                panel.contentView = NSHostingView(rootView: RestOverlayScreenView(
+                    settingsStore: scheduler.settingsStore, session: session,
+                    onSnooze: { [weak self] in self?.snoozeFromOverlay(id: session.id) },
+                    onSkip: { [weak self] in self?.skipFromOverlay(id: session.id) },
+                    onClose: { [weak self] in self?.closePresentation(id: session.id) }
+                ))
+                panel.setFrame(screen.frame, display: true)
+                windows[screen.id] = panel
+                if presentsWindows {
+                    let animated = session.fadeAnimation && !reduceMotion()
+                    panel.alphaValue = animated ? 0 : 1
+                    panel.orderFrontRegardless()
+                    if animated {
+                        NSAnimationContext.runAnimationGroup { context in
+                            context.duration = 0.55
+                            panel.animator().alphaValue = 1
+                        }
+                    }
+                }
+            }
+        }
+        if presentsWindows, let id = keyboardScreenID {
+            windows[id]?.makeKey()
+        }
     }
 
     private func hide(animated: Bool) {
-        keyMonitor.map(NSEvent.removeMonitor)
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
         keyMonitor = nil
         previewTask?.cancel()
         previewTask = nil
-
-        let closingWindows = windows
-        let closingDismissalState = dismissalState
+        let closingWindows = Array(windows.values)
         windows.removeAll()
-        dismissalState = nil
+        keyboardScreenID = nil
+        guard let closingSession = session else { close(closingWindows); return }
+        session = nil
+        closingSession.beginDismissal()
+        guard animated, presentsWindows else { close(closingWindows); return }
 
-        guard !closingWindows.isEmpty else {
-            return
-        }
-
-        guard animated else {
-            close(closingWindows)
-            return
-        }
-
-        if scheduler.settingsStore.settings.restOverlayBackground == .sun,
-           let closingDismissalState {
-            closingWindows.forEach { window in
-                window.alphaValue = 1
-            }
-            closingDismissalState.frozenTime = scheduler.formattedTime
-            closingDismissalState.isDismissing = true
+        if closingSession.background == .sun {
+            // Preserve the existing sun treatment: content fades before its background.
+            closingWindows.forEach { $0.alphaValue = 1 }
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(220))
                 self.close(closingWindows)
             }
-            return
-        }
-
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.42
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            closingWindows.forEach { window in
-                window.animator().alphaValue = 0
-            }
-        } completionHandler: {
-            Task { @MainActor in
-                self.close(closingWindows)
+        } else {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.42
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                closingWindows.forEach { $0.animator().alphaValue = 0 }
+            } completionHandler: {
+                Task { @MainActor in self.close(closingWindows) }
             }
         }
     }
 
-    private func showWindows<Content: View>(@ViewBuilder content: @escaping () -> Content) {
-        windows = NSScreen.screens.map { screen in
-            let window = OverlayPanel(
-                contentRect: screen.frame,
-                styleMask: [.borderless, .nonactivatingPanel],
-                backing: .buffered,
-                defer: false
-            )
-            window.level = .screenSaver
-            window.alphaValue = scheduler.settingsStore.settings.restOverlayFadeAnimation ? 0 : 1
-            window.backgroundColor = .clear
-            window.isOpaque = false
-            window.hasShadow = false
-            window.hidesOnDeactivate = false
-            window.collectionBehavior = [
-                .canJoinAllSpaces,
-                .fullScreenAuxiliary,
-                .stationary
-            ]
-            window.contentView = NSHostingView(rootView: content())
-            window.setFrame(screen.frame, display: true)
-            window.orderFrontRegardless()
-            return window
-        }
-    }
-
-    private func showVisibleWindows() {
-        guard scheduler.settingsStore.settings.restOverlayFadeAnimation else {
-            windows.forEach { window in
-                window.alphaValue = 1
-            }
-            return
-        }
-
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.55
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            windows.forEach { window in
-                window.animator().alphaValue = 1
-            }
-        }
-    }
-
-    private func close(_ closingWindows: [NSPanel]) {
-        closingWindows.forEach { window in
-            window.orderOut(nil)
-            window.contentView = nil
-            window.close()
+    private func close(_ panels: [NSPanel]) {
+        panels.forEach {
+            $0.orderOut(nil)
+            $0.contentView = nil
+            $0.close()
         }
     }
 
     private func installEscapeMonitor() {
+        guard presentsWindows else { return }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard event.keyCode == 53 else { return event }
-            guard let settings = self?.scheduler.settingsStore.settings,
-                  settings.allowEscToSkip,
-                  settings.allowSkip,
-                  !settings.strictMode else { return event }
-            self?.skipFromOverlay()
-            return nil
+            guard let self, event.keyCode == 53, let session = self.session,
+                  self.windows.values.contains(where: { $0 === event.window }) else { return event }
+            return self.handleEscape(id: session.id) ? nil : event
         }
     }
 
-    private func snoozeFromOverlay() {
-        hide()
-        DispatchQueue.main.async { [onSnooze] in
-            onSnooze()
+    @discardableResult
+    func handleEscape(id: UUID) -> Bool {
+        guard let session, session.id == id else { return false }
+        if session.kind == .preview {
+            closePresentation(id: id)
+            return true
         }
+        let settings = scheduler.settingsStore.settings
+        guard settings.allowEscToSkip, settings.allowSkip, !settings.strictMode else { return false }
+        skipFromOverlay(id: id)
+        return true
     }
 
-    private func skipFromOverlay() {
+    func snoozeFromOverlay(id: UUID) {
+        guard session?.id == id, session?.kind == .rest, scheduler.isResting,
+              !scheduler.settingsStore.settings.strictMode else { return }
         hide()
-        DispatchQueue.main.async { [onSkip] in
-            onSkip()
+        onSnooze()
+    }
+
+    func skipFromOverlay(id: UUID) {
+        let settings = scheduler.settingsStore.settings
+        guard session?.id == id, session?.kind == .rest, scheduler.isResting,
+              settings.allowSkip, !settings.strictMode else { return }
+        hide()
+        onSkip()
+    }
+}
+
+struct RestOverlayScreenView: View {
+    @ObservedObject var settingsStore: SettingsStore
+    @ObservedObject var session: RestOverlaySession
+    let onSnooze: () -> Void
+    let onSkip: () -> Void
+    let onClose: () -> Void
+
+    var body: some View {
+        Group {
+            if session.kind == .rest {
+                RestOverlayView(settingsStore: settingsStore, session: session,
+                                onSnooze: onSnooze, onSkip: onSkip)
+            } else {
+                RestOverlayPreviewView(session: session,
+                                       onClose: onClose)
+            }
         }
     }
 }

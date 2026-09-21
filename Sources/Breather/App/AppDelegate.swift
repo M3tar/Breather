@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let settingsStore = SettingsStore()
     let notificationService = NotificationService()
     let restSoundService = RestSoundService()
+    let restOverlayAvailability = RestOverlayAvailability()
     var openSettingsHandler: (() -> Void)?
     private var isSettingsWindowOpenRequested = false
 
@@ -35,7 +36,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             },
             onSkip: { [weak scheduler] in
                 scheduler?.skipBreak()
-            }
+            },
+            availability: restOverlayAvailability
         )
 
         menuBarController = MenuBarController(
@@ -52,7 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             restOverlayController?.show()
         }
         scheduler.onRestEnded = { [weak restOverlayController] in
-            restOverlayController?.hide()
+            restOverlayController?.hideRest()
         }
         scheduler.onRestBegan = { [weak self] in
             guard let settings = self?.settingsStore.settings,
@@ -106,6 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         displayMirroringMonitor.stop()
+        restOverlayController?.shutdown()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

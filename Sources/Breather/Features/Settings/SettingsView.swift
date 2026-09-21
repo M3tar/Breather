@@ -5,6 +5,7 @@ struct SettingsView: View {
     @ObservedObject var settingsStore: SettingsStore
     let notificationService: any NotificationSettingsServicing
     let restSoundService: RestSoundService
+    var restOverlayAvailability = RestOverlayAvailability()
     let onApplyRulesToCurrentCycle: () -> Void
     let onPreviewRestOverlay: () -> Void
 
@@ -69,6 +70,7 @@ struct SettingsView: View {
             RestOverlaySettingsScreen(
                 settingsStore: settingsStore,
                 restSoundService: restSoundService,
+                availability: restOverlayAvailability,
                 onPreviewRestOverlay: onPreviewRestOverlay
             )
         }

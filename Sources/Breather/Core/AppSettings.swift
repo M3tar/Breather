@@ -493,6 +493,24 @@ enum RestSoundEffect: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum RestOverlayContentMode: String, Codable, CaseIterable, Identifiable {
+    case classic
+    case dinosaur
+
+    var id: String { rawValue }
+    var title: String { self == .classic ? "此刻留白" : "像素漫游" }
+    var summary: String {
+        self == .classic
+            ? "把忙碌轻轻放下，让这一刻只属于你"
+            : "小小的脚步，走过一段不赶路的时光"
+    }
+
+    init(from decoder: Decoder) throws {
+        let value = try decoder.singleValueContainer().decode(String.self)
+        self = Self(rawValue: value) ?? .classic
+    }
+}
+
 struct AppSettings: Codable, Equatable {
     var appearancePreference: AppearancePreference = .system
     var showMenuBarIcon: Bool = true
@@ -516,6 +534,7 @@ struct AppSettings: Codable, Equatable {
     var autoPauseDuringDisplayMirroring: Bool = true
     var resetAfterWakeOrUnlock: Bool = false
     var restOverlayPrompt: RestOverlayPrompt = .lookFar
+    var restOverlayContentMode: RestOverlayContentMode = .classic
     var restOverlaySubtitle: RestOverlaySubtitle = .random
     var restOverlayBackground: RestOverlayBackground = .solid
     var restOverlayFadeAnimation: Bool = true
@@ -560,6 +579,7 @@ struct AppSettings: Codable, Equatable {
         }
         resetAfterWakeOrUnlock = try container.decodeIfPresent(Bool.self, forKey: .resetAfterWakeOrUnlock) ?? false
         restOverlayPrompt = try container.decodeIfPresent(RestOverlayPrompt.self, forKey: .restOverlayPrompt) ?? .lookFar
+        restOverlayContentMode = try container.decodeIfPresent(RestOverlayContentMode.self, forKey: .restOverlayContentMode) ?? .classic
         restOverlaySubtitle = try container.decodeIfPresent(RestOverlaySubtitle.self, forKey: .restOverlaySubtitle) ?? .random
         restOverlayBackground = try container.decodeIfPresent(RestOverlayBackground.self, forKey: .restOverlayBackground) ?? .solid
         restOverlayFadeAnimation = try container.decodeIfPresent(Bool.self, forKey: .restOverlayFadeAnimation) ?? true

@@ -27,6 +27,7 @@ struct BreatherApp: App {
                 settingsStore: appDelegate.settingsStore,
                 notificationService: appDelegate.notificationService,
                 restSoundService: appDelegate.restSoundService,
+                restOverlayAvailability: appDelegate.restOverlayAvailability,
                 onApplyRulesToCurrentCycle: {
                     appDelegate.applyCurrentRulesToCurrentCycle()
                 },

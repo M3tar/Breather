@@ -49,37 +49,40 @@ enum RestOverlayBackgroundSetting: String, CaseIterable, Identifiable {
 struct RestOverlaySettingsScreen: View {
     @ObservedObject var settingsStore: SettingsStore
     let restSoundService: RestSoundService
+    @ObservedObject var availability = RestOverlayAvailability()
     let onPreviewRestOverlay: () -> Void
 
     var body: some View {
         SettingsScreenContainer {
+            RestThemePicker(settings: $settingsStore.settings,
+                            duration: settingsStore.shortBreakSeconds,
+                            isResting: availability.isResting)
             appearanceGroup
             copyGroup
-
-            VStack(alignment: .leading, spacing: 15) {
-                soundGroup
-                previewAction
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            soundGroup
+            Divider()
+            previewAction
         }
     }
 
     private var appearanceGroup: some View {
         SettingsGroup("外观") {
-            SettingsRow(title: "背景样式") {
-                Picker("背景样式", selection: restOverlayBackgroundSettingBinding) {
-                    ForEach(RestOverlayBackgroundSetting.allCases) { setting in
-                        Text(setting.title).tag(setting)
+            if settingsStore.settings.restOverlayContentMode == .classic {
+                SettingsRow(title: "背景样式") {
+                    Picker("背景样式", selection: restOverlayBackgroundSettingBinding) {
+                        ForEach(RestOverlayBackgroundSetting.allCases) { setting in
+                            Text(setting.title).tag(setting)
+                        }
                     }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .fixedSize()
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .fixedSize()
             }
 
-            SettingsRow(title: "转场动画") {
+            SettingsRow(title: "休息界面淡入淡出") {
                 SettingsSwitch(
-                    "转场动画",
+                    "休息界面淡入淡出",
                     isOn: settingsBinding(\.restOverlayFadeAnimation)
                 )
             }
@@ -135,13 +138,21 @@ struct RestOverlaySettingsScreen: View {
     }
 
     private var previewAction: some View {
-        Button(action: onPreviewRestOverlay) {
-            Label("预览界面", systemImage: "play.fill")
+        HStack {
+            if availability.isResting {
+                Text("休息结束后可预览")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button(action: onPreviewRestOverlay) {
+                Label("预览界面", systemImage: "play.fill")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.regular)
+            .disabled(availability.isResting)
+            .help("预览当前休息界面设置")
         }
-        .buttonStyle(.bordered)
-        .controlSize(.regular)
-        .help("预览当前休息界面设置")
-        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
     private func settingsBinding(_ keyPath: WritableKeyPath<AppSettings, Bool>) -> Binding<Bool> {
