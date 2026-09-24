@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let settingsStore = SettingsStore()
     let notificationService = NotificationService()
     let restSoundService = RestSoundService()
+    let restAmbientSoundService = RestAmbientSoundService()
     let restOverlayAvailability = RestOverlayAvailability()
     var openSettingsHandler: (() -> Void)?
     private var isSettingsWindowOpenRequested = false
@@ -37,7 +38,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onSkip: { [weak scheduler] in
                 scheduler?.skipBreak()
             },
-            availability: restOverlayAvailability
+            availability: restOverlayAvailability,
+            ambientSoundService: restAmbientSoundService
         )
 
         menuBarController = MenuBarController(

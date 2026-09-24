@@ -24,8 +24,21 @@ struct DinosaurRestContentView: View {
     var compact = false
 
     private var animated: Bool {
-        !reduceMotion && !compact
-            && !session.isAnimationPaused && !session.isDismissing
+        Self.animationEnabled(
+            reduceMotion: reduceMotion,
+            compact: compact,
+            isPaused: session.isAnimationPaused,
+            isDismissing: session.isDismissing
+        )
+    }
+
+    static func animationEnabled(
+        reduceMotion: Bool,
+        compact: Bool,
+        isPaused: Bool,
+        isDismissing: Bool
+    ) -> Bool {
+        !reduceMotion && !isPaused && !isDismissing
     }
 
     var body: some View {

@@ -39,6 +39,7 @@ final class BreakScheduler: ObservableObject {
     private var timer: Timer?
     private var notificationSent = false
     private var previousStateBeforePause: BreakState = .working
+    private var restCountdownStartsAt: Date?
 
     init(
         settingsStore: SettingsStore,
@@ -232,6 +233,7 @@ final class BreakScheduler: ObservableObject {
 
     func resetWorkCycle() {
         let wasResting = state == .resting
+        restCountdownStartsAt = nil
 
         settingsStore.activateSavedRulesForCurrentCycle()
 
@@ -319,6 +321,7 @@ final class BreakScheduler: ObservableObject {
         guard state == .resting, !settings.strictMode else { return }
         consecutiveMissedBreaks += 1
         state = .snoozing
+        restCountdownStartsAt = nil
         remainingSeconds = Int(settings.snoozeDuration)
         notificationSent = true
         onRestEnded?()
@@ -349,6 +352,14 @@ final class BreakScheduler: ObservableObject {
             onRestEnded?()
             updateStatusText()
             return
+        }
+
+        if state == .resting, let restCountdownStartsAt {
+            guard now() >= restCountdownStartsAt else {
+                updateStatusText()
+                return
+            }
+            self.restCountdownStartsAt = nil
         }
 
         remainingSeconds = max(0, remainingSeconds - 1)
@@ -465,11 +476,17 @@ final class BreakScheduler: ObservableObject {
 
     private func beginRest() {
         state = .resting
+        restCountdownStartsAt = nil
         remainingSeconds = Int(settingsStore.currentCycleRules.shortBreakDuration)
         notificationSent = false
         updateStatusText()
         onRestStarted?()
         onRestBegan?()
+    }
+
+    func deferCurrentRestCountdown(by duration: TimeInterval) {
+        guard state == .resting, duration > 0 else { return }
+        restCountdownStartsAt = now().addingTimeInterval(duration)
     }
 
     private func updateStatusText() {

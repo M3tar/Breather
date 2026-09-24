@@ -3,6 +3,7 @@ import SwiftUI
 enum RestOverlayBackgroundSetting: String, CaseIterable, Identifiable {
     case solid
     case translucentSolid
+    case linen
     case moon
     case sun
 
@@ -12,6 +13,7 @@ enum RestOverlayBackgroundSetting: String, CaseIterable, Identifiable {
         switch self {
         case .solid: "纯色"
         case .translucentSolid: "半透明纯色"
+        case .linen: "亚麻米色"
         case .moon: "月亮"
         case .sun: "太阳"
         }
@@ -21,6 +23,8 @@ enum RestOverlayBackgroundSetting: String, CaseIterable, Identifiable {
         switch settings.restOverlayBackground {
         case .solid:
             self = settings.restOverlayTranslucentBackground ? .translucentSolid : .solid
+        case .linen:
+            self = .linen
         case .moon:
             self = .moon
         case .sun:
@@ -36,12 +40,161 @@ enum RestOverlayBackgroundSetting: String, CaseIterable, Identifiable {
         case .translucentSolid:
             settings.restOverlayBackground = .solid
             settings.restOverlayTranslucentBackground = true
+        case .linen:
+            settings.restOverlayBackground = .linen
+            settings.restOverlayTranslucentBackground = false
         case .moon:
             settings.restOverlayBackground = .moon
             settings.restOverlayTranslucentBackground = false
         case .sun:
             settings.restOverlayBackground = .sun
             settings.restOverlayTranslucentBackground = false
+        }
+    }
+}
+
+private struct RestBackgroundStylePicker: View {
+    @Binding var selection: RestOverlayBackgroundSetting
+
+    var body: some View {
+        VisualChoicePicker(
+            options: RestOverlayBackgroundSetting.allCases,
+            selection: $selection,
+            title: \.title
+        ) { setting in
+            RestBackgroundStyleSwatch(setting: setting)
+        }
+    }
+}
+
+struct CurtainPalettePicker: View {
+    @Binding var selection: CurtainPalette
+
+    var body: some View {
+        VisualChoicePicker(
+            options: CurtainPalette.allCases,
+            selection: $selection,
+            title: \.title
+        ) { palette in
+            let colors = CurtainColors(palette: palette)
+            LinearGradient(
+                colors: [colors.deep, colors.highlight, colors.base, colors.deep],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        }
+    }
+}
+
+private struct VisualChoicePicker<Option, Preview>: View
+where Option: Hashable & Identifiable, Preview: View {
+    let options: [Option]
+    @Binding var selection: Option
+    let title: (Option) -> String
+    @ViewBuilder let preview: (Option) -> Preview
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) {
+                ForEach(options) { option in choice(option) }
+            }
+
+            Grid(horizontalSpacing: 8, verticalSpacing: 8) {
+                ForEach(0..<((options.count + 2) / 3), id: \.self) { row in
+                    GridRow {
+                        ForEach(0..<3, id: \.self) { column in
+                            let index = row * 3 + column
+                            if index < options.count {
+                                choice(options[index])
+                            } else {
+                                Color.clear.frame(width: 62, height: 54)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func choice(_ option: Option) -> some View {
+        let selected = selection == option
+        return Button {
+            selection = option
+        } label: {
+            VStack(spacing: 5) {
+                preview(option)
+                    .frame(width: 62, height: 34)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(selected ? Color.accentColor : Color.secondary.opacity(0.28),
+                                          lineWidth: selected ? 2 : 1)
+                    }
+                    .overlay(alignment: .topTrailing) {
+                        if selected {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 12))
+                                .symbolRenderingMode(.palette)
+                                .foregroundStyle(.white, Color.accentColor)
+                                .padding(3)
+                        }
+                    }
+
+                Text(title(option))
+                    .font(.caption2)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title(option))
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
+    }
+}
+
+private struct RestBackgroundStyleSwatch: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let setting: RestOverlayBackgroundSetting
+
+    var body: some View {
+        ZStack {
+            if setting == .translucentSolid {
+                CheckerboardSwatch()
+            }
+            RestOverlayBackgroundView(
+                background: setting.background,
+                style: RestOverlayStyle(background: setting.background, colorScheme: colorScheme),
+                translucent: setting == .translucentSolid
+            )
+        }
+    }
+}
+
+private struct CheckerboardSwatch: View {
+    var body: some View {
+        Canvas { context, size in
+            let cell = size.height / 2
+            for row in 0..<2 {
+                for column in 0..<4 where (row + column).isMultiple(of: 2) {
+                    context.fill(
+                        Path(CGRect(x: CGFloat(column) * cell, y: CGFloat(row) * cell,
+                                    width: cell, height: cell)),
+                        with: .color(Color.secondary.opacity(0.14))
+                    )
+                }
+            }
+        }
+        .background(Color.primary.opacity(0.04))
+    }
+}
+
+private extension RestOverlayBackgroundSetting {
+    var background: RestOverlayBackground {
+        switch self {
+        case .solid, .translucentSolid: .solid
+        case .linen: .linen
+        case .moon: .moon
+        case .sun: .sun
         }
     }
 }
@@ -53,15 +206,17 @@ struct RestOverlaySettingsScreen: View {
     let onPreviewRestOverlay: () -> Void
 
     var body: some View {
-        SettingsScreenContainer {
-            RestThemePicker(settings: $settingsStore.settings,
-                            duration: settingsStore.shortBreakSeconds,
-                            isResting: availability.isResting)
-            appearanceGroup
-            copyGroup
-            soundGroup
-            Divider()
-            previewAction
+        VStack(spacing: 0) {
+            SettingsScreenContainer {
+                RestThemePicker(settings: $settingsStore.settings,
+                                duration: settingsStore.shortBreakSeconds,
+                                isResting: availability.isResting)
+                appearanceGroup
+                copyGroup
+                soundGroup
+            }
+
+            previewActionBar
         }
     }
 
@@ -69,20 +224,19 @@ struct RestOverlaySettingsScreen: View {
         SettingsGroup("外观") {
             if settingsStore.settings.restOverlayContentMode == .classic {
                 SettingsRow(title: "背景样式") {
-                    Picker("背景样式", selection: restOverlayBackgroundSettingBinding) {
-                        ForEach(RestOverlayBackgroundSetting.allCases) { setting in
-                            Text(setting.title).tag(setting)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .fixedSize()
+                    RestBackgroundStylePicker(selection: restOverlayBackgroundSettingBinding)
                 }
             }
 
-            SettingsRow(title: "休息界面淡入淡出") {
+            if settingsStore.settings.restOverlayContentMode == .curtain {
+                SettingsRow(title: "帷幕配色") {
+                    CurtainPalettePicker(selection: curtainPaletteBinding)
+                }
+            }
+
+            SettingsRow(title: "休息界面过渡动画") {
                 SettingsSwitch(
-                    "休息界面淡入淡出",
+                    "休息界面过渡动画",
                     isOn: settingsBinding(\.restOverlayFadeAnimation)
                 )
             }
@@ -123,6 +277,15 @@ struct RestOverlaySettingsScreen: View {
 
     private var soundGroup: some View {
         SettingsGroup("声音") {
+            if settingsStore.settings.restOverlayContentMode == .rainy {
+                SettingsRow(title: "持续雨声") {
+                    SettingsSwitch(
+                        "持续雨声",
+                        isOn: settingsBinding(\.rainAmbienceEnabled)
+                    )
+                }
+            }
+
             SettingsRow(title: "进入休息") {
                 SoundEffectControl(selection: restStartSoundEffectBinding) {
                     previewSound(settingsStore.settings.restStartSoundEffect)
@@ -137,21 +300,36 @@ struct RestOverlaySettingsScreen: View {
         }
     }
 
-    private var previewAction: some View {
-        HStack {
+    private var previewActionBar: some View {
+        HStack(spacing: 8) {
+            Text("当前主题")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            Text(settingsStore.settings.restOverlayContentMode.title)
+                .font(.body.weight(.medium))
+
+            Spacer()
+
             if availability.isResting {
                 Text("休息结束后可预览")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Spacer()
+
             Button(action: onPreviewRestOverlay) {
-                Label("预览界面", systemImage: "play.fill")
+                Label("全屏预览", systemImage: "play.fill")
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.borderedProminent)
             .controlSize(.regular)
             .disabled(availability.isResting)
             .help("预览当前休息界面设置")
+        }
+        .padding(.horizontal, 20)
+        .frame(height: SettingsFooterMetrics.height)
+        .background(.bar)
+        .overlay(alignment: .top) {
+            Divider()
         }
     }
 
@@ -184,6 +362,13 @@ struct RestOverlaySettingsScreen: View {
                 selection.apply(to: &settings)
                 settingsStore.settings = settings
             }
+        )
+    }
+
+    private var curtainPaletteBinding: Binding<CurtainPalette> {
+        Binding(
+            get: { settingsStore.settings.curtainPalette },
+            set: { settingsStore.settings.curtainPalette = $0 }
         )
     }
 

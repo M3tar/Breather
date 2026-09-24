@@ -271,6 +271,7 @@ enum RestOverlaySubtitle: String, Codable, CaseIterable, Identifiable {
 
 enum RestOverlayBackground: String, Codable, CaseIterable, Identifiable {
     case solid
+    case linen
     case moon
     case sun
 
@@ -279,6 +280,7 @@ enum RestOverlayBackground: String, Codable, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .solid: "纯色"
+        case .linen: "亚麻米色"
         case .moon: "月亮"
         case .sun: "太阳"
         }
@@ -286,7 +288,7 @@ enum RestOverlayBackground: String, Codable, CaseIterable, Identifiable {
 
     var imageName: String? {
         switch self {
-        case .solid: nil
+        case .solid, .linen: nil
         case .moon: "rest-background-moon"
         case .sun: "rest-background-sun"
         }
@@ -496,18 +498,64 @@ enum RestSoundEffect: String, Codable, CaseIterable, Identifiable {
 enum RestOverlayContentMode: String, Codable, CaseIterable, Identifiable {
     case classic
     case dinosaur
+    case curtain
+    case moonlight
+    case windowLeaves
+    case sunny
+    case rainy
+    case snowy
+    case cloudTrain
 
     var id: String { rawValue }
-    var title: String { self == .classic ? "此刻留白" : "像素漫游" }
+    var title: String {
+        switch self {
+        case .classic: "此刻留白"
+        case .dinosaur: "像素漫游"
+        case .curtain: "幕间休息"
+        case .moonlight: "月夜静栖"
+        case .windowLeaves: "窗边叶影"
+        case .sunny: "晴日叶舞"
+        case .rainy: "窗前听雨"
+        case .snowy: "雪落无声"
+        case .cloudTrain: "云海列车"
+        }
+    }
+
     var summary: String {
-        self == .classic
-            ? "把忙碌轻轻放下，让这一刻只属于你"
-            : "小小的脚步，走过一段不赶路的时光"
+        switch self {
+        case .classic: "把忙碌轻轻放下，让这一刻只属于你"
+        case .dinosaur: "小小的脚步，走过一段不赶路的时光"
+        case .curtain: "合上工作，休息片刻；再拉开帷幕继续"
+        case .moonlight: "月光与星点，让夜色慢下来"
+        case .windowLeaves: "让日光与枝叶投影陪你停一会儿"
+        case .sunny: "金色日光里，看叶片轻轻落下"
+        case .rainy: "看雨滴沿窗缓缓滑落，听一会儿雨"
+        case .snowy: "看雪花缓缓落下，留一点安静"
+        case .cloudTrain: "乘着小火车，慢慢驶过晚霞与云海"
+        }
     }
 
     init(from decoder: Decoder) throws {
         let value = try decoder.singleValueContainer().decode(String.self)
         self = Self(rawValue: value) ?? .classic
+    }
+}
+
+enum CurtainPalette: String, Codable, CaseIterable, Identifiable {
+    case smokedJade
+    case warmLinen
+    case mistBlue
+    case blackCherry
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .smokedJade: "烟熏玉石"
+        case .warmLinen: "暖石燕麦"
+        case .mistBlue: "雾霾蓝灰"
+        case .blackCherry: "黑樱桃红"
+        }
     }
 }
 
@@ -535,10 +583,12 @@ struct AppSettings: Codable, Equatable {
     var resetAfterWakeOrUnlock: Bool = false
     var restOverlayPrompt: RestOverlayPrompt = .lookFar
     var restOverlayContentMode: RestOverlayContentMode = .classic
+    var curtainPalette: CurtainPalette = .smokedJade
     var restOverlaySubtitle: RestOverlaySubtitle = .random
     var restOverlayBackground: RestOverlayBackground = .solid
     var restOverlayFadeAnimation: Bool = true
     var restOverlayTranslucentBackground: Bool = false
+    var rainAmbienceEnabled: Bool = true
     var playRestStartSound: Bool = true
     var playRestEndSound: Bool = true
     var restStartSoundEffect: RestSoundEffect = .stardewNewRecord
@@ -579,11 +629,19 @@ struct AppSettings: Codable, Equatable {
         }
         resetAfterWakeOrUnlock = try container.decodeIfPresent(Bool.self, forKey: .resetAfterWakeOrUnlock) ?? false
         restOverlayPrompt = try container.decodeIfPresent(RestOverlayPrompt.self, forKey: .restOverlayPrompt) ?? .lookFar
-        restOverlayContentMode = try container.decodeIfPresent(RestOverlayContentMode.self, forKey: .restOverlayContentMode) ?? .classic
+        let storedRestOverlayContentMode = try container.decodeIfPresent(String.self, forKey: .restOverlayContentMode)
+        let migratesSheerLinen = storedRestOverlayContentMode == "sheerLinen"
+        restOverlayContentMode = storedRestOverlayContentMode.flatMap(RestOverlayContentMode.init(rawValue:)) ?? .classic
+        curtainPalette = try container.decodeIfPresent(CurtainPalette.self, forKey: .curtainPalette) ?? .smokedJade
         restOverlaySubtitle = try container.decodeIfPresent(RestOverlaySubtitle.self, forKey: .restOverlaySubtitle) ?? .random
-        restOverlayBackground = try container.decodeIfPresent(RestOverlayBackground.self, forKey: .restOverlayBackground) ?? .solid
+        restOverlayBackground = migratesSheerLinen
+            ? .linen
+            : try container.decodeIfPresent(RestOverlayBackground.self, forKey: .restOverlayBackground) ?? .solid
         restOverlayFadeAnimation = try container.decodeIfPresent(Bool.self, forKey: .restOverlayFadeAnimation) ?? true
-        restOverlayTranslucentBackground = try container.decodeIfPresent(Bool.self, forKey: .restOverlayTranslucentBackground) ?? false
+        restOverlayTranslucentBackground = migratesSheerLinen
+            ? false
+            : try container.decodeIfPresent(Bool.self, forKey: .restOverlayTranslucentBackground) ?? false
+        rainAmbienceEnabled = try container.decodeIfPresent(Bool.self, forKey: .rainAmbienceEnabled) ?? true
         playRestStartSound = try container.decodeIfPresent(Bool.self, forKey: .playRestStartSound) ?? true
         playRestEndSound = try container.decodeIfPresent(Bool.self, forKey: .playRestEndSound) ?? true
         restStartSoundEffect = try container.decodeIfPresent(RestSoundEffect.self, forKey: .restStartSoundEffect) ?? (playRestStartSound ? .stardewNewRecord : .none)

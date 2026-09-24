@@ -15,12 +15,15 @@ final class RestOverlaySession: ObservableObject {
     let id = UUID()
     let kind: Kind
     let contentMode: RestOverlayContentMode
+    let curtainPalette: CurtainPalette
     let background: RestOverlayBackground
     let translucent: Bool
     let fadeAnimation: Bool
+    let rainAmbienceEnabled: Bool
     let copy: RestOverlayCopy
     let totalSeconds: Int
     let scene: DinosaurSceneModel
+    private let previewCountdownDelay: TimeInterval
 
     @Published private(set) var remainingSeconds: Int
     @Published private(set) var isDismissing = false
@@ -35,16 +38,22 @@ final class RestOverlaySession: ObservableObject {
         kind: Kind, settings: AppSettings, totalSeconds: Int,
         remainingSeconds: Int? = nil, showsRecoveryNudge: Bool = false,
         seed: UInt64 = UInt64.random(in: 0...UInt64.max),
+        countdownDelay: TimeInterval? = nil,
         uptime: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
     ) {
         self.kind = kind
         contentMode = settings.restOverlayContentMode
-        background = contentMode == .dinosaur ? .solid : settings.restOverlayBackground
+        curtainPalette = settings.curtainPalette
+        background = contentMode == .classic ? settings.restOverlayBackground : .solid
         translucent = contentMode == .classic && settings.restOverlayTranslucentBackground
         fadeAnimation = settings.restOverlayFadeAnimation
+        rainAmbienceEnabled = settings.rainAmbienceEnabled
         copy = RestOverlayCopy(settings: settings, showsRecoveryNudge: showsRecoveryNudge)
         self.totalSeconds = max(1, totalSeconds)
         self.remainingSeconds = max(0, remainingSeconds ?? totalSeconds)
+        previewCountdownDelay = countdownDelay ?? (
+            contentMode == .curtain && fadeAnimation ? CurtainTiming.closingDuration : 0
+        )
         scene = DinosaurSceneModel(seed: seed)
         self.uptime = uptime
         anchor = uptime()
@@ -80,7 +89,8 @@ final class RestOverlaySession: ObservableObject {
 
     func updatePreview() {
         guard kind == .preview else { return }
-        updateRemaining(Int(ceil(max(0, Double(totalSeconds) - animationElapsed))))
+        let countdownElapsed = max(0, animationElapsed - previewCountdownDelay)
+        updateRemaining(Int(ceil(max(0, Double(totalSeconds) - countdownElapsed))))
     }
 
     func setAnimationPaused(_ paused: Bool) {

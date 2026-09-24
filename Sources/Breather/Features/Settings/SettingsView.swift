@@ -73,6 +73,8 @@ struct SettingsView: View {
                 availability: restOverlayAvailability,
                 onPreviewRestOverlay: onPreviewRestOverlay
             )
+        case .about:
+            AboutSettingsScreen()
         }
     }
 
@@ -114,8 +116,6 @@ struct SettingsSidebar: View {
             .listStyle(.sidebar)
             .accessibilityLabel("设置分类")
 
-            Divider()
-
             HStack {
                 Button(action: onQuit) {
                     Image(systemName: "power")
@@ -132,7 +132,7 @@ struct SettingsSidebar: View {
                 Spacer()
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            .frame(height: SettingsFooterMetrics.height)
         }
     }
 }
@@ -141,6 +141,7 @@ enum SettingsSectionID: String, CaseIterable, Identifiable, Hashable {
     case general
     case schedule
     case restOverlay
+    case about
 
     var id: String { rawValue }
 
@@ -149,6 +150,7 @@ enum SettingsSectionID: String, CaseIterable, Identifiable, Hashable {
         case .general: "通用"
         case .schedule: "计划"
         case .restOverlay: "休息界面"
+        case .about: "关于"
         }
     }
 
@@ -157,6 +159,7 @@ enum SettingsSectionID: String, CaseIterable, Identifiable, Hashable {
         case .general: "gearshape"
         case .schedule: "timer"
         case .restOverlay: "rectangle.inset.filled"
+        case .about: "info.circle"
         }
     }
 }

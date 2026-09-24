@@ -32,12 +32,22 @@
 		100000000000000000000125 /* ScheduleSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000025 /* ScheduleSettingsScreen.swift */; };
 		100000000000000000000126 /* RestOverlaySettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000026 /* RestOverlaySettingsScreen.swift */; };
 		100000000000000000000127 /* SettingsComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000027 /* SettingsComponents.swift */; };
+		100000000000000000000128 /* AboutSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000028 /* AboutSettingsScreen.swift */; };
 		200000000000000000000100 /* RestOverlaySession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000000 /* RestOverlaySession.swift */; };
 		200000000000000000000101 /* RestOverlayShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000001 /* RestOverlayShell.swift */; };
 		200000000000000000000102 /* RestOverlayStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000002 /* RestOverlayStyle.swift */; };
 		200000000000000000000103 /* DinosaurSceneModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000003 /* DinosaurSceneModel.swift */; };
 		200000000000000000000104 /* DinosaurRestContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000004 /* DinosaurRestContentView.swift */; };
 		200000000000000000000105 /* RestThemePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000005 /* RestThemePicker.swift */; };
+		200000000000000000000106 /* CurtainBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000006 /* CurtainBackdrop.swift */; };
+		200000000000000000000107 /* AtmosphericRestBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000007 /* AtmosphericRestBackdrop.swift */; };
+		200000000000000000000111 /* SunnyLeafVideoBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000011 /* SunnyLeafVideoBackdrop.swift */; };
+		200000000000000000000112 /* Video in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000012 /* Video */; };
+		200000000000000000000113 /* LoopingAtmosphereVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000013 /* LoopingAtmosphereVideo.swift */; };
+		200000000000000000000114 /* SnowfallMetalBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000014 /* SnowfallMetalBackdrop.swift */; };
+		200000000000000000000115 /* RainGlassMetalBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000015 /* RainGlassMetalBackdrop.swift */; };
+		200000000000000000000116 /* CloudTrainMetalBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000016 /* CloudTrainMetalBackdrop.swift */; };
+		200000000000000000000117 /* Textures in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000017 /* Textures */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -66,6 +76,7 @@
 		100000000000000000000025 /* ScheduleSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleSettingsScreen.swift; sourceTree = "<group>"; };
 		100000000000000000000026 /* RestOverlaySettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestOverlaySettingsScreen.swift; sourceTree = "<group>"; };
 		100000000000000000000027 /* SettingsComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsComponents.swift; sourceTree = "<group>"; };
+		100000000000000000000028 /* AboutSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutSettingsScreen.swift; sourceTree = "<group>"; };
 		100000000000000000000014 /* Breather.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Breather.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		200000000000000000000000 /* RestOverlaySession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestOverlaySession.swift; sourceTree = "<group>"; };
 		200000000000000000000001 /* RestOverlayShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestOverlayShell.swift; sourceTree = "<group>"; };
@@ -73,6 +84,15 @@
 		200000000000000000000003 /* DinosaurSceneModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DinosaurSceneModel.swift; sourceTree = "<group>"; };
 		200000000000000000000004 /* DinosaurRestContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DinosaurRestContentView.swift; sourceTree = "<group>"; };
 		200000000000000000000005 /* RestThemePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestThemePicker.swift; sourceTree = "<group>"; };
+		200000000000000000000006 /* CurtainBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurtainBackdrop.swift; sourceTree = "<group>"; };
+		200000000000000000000007 /* AtmosphericRestBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AtmosphericRestBackdrop.swift; sourceTree = "<group>"; };
+		200000000000000000000011 /* SunnyLeafVideoBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SunnyLeafVideoBackdrop.swift; sourceTree = "<group>"; };
+		200000000000000000000012 /* Video */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Video; sourceTree = "<group>"; };
+		200000000000000000000013 /* LoopingAtmosphereVideo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopingAtmosphereVideo.swift; sourceTree = "<group>"; };
+		200000000000000000000014 /* SnowfallMetalBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnowfallMetalBackdrop.swift; sourceTree = "<group>"; };
+		200000000000000000000015 /* RainGlassMetalBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RainGlassMetalBackdrop.swift; sourceTree = "<group>"; };
+		200000000000000000000016 /* CloudTrainMetalBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudTrainMetalBackdrop.swift; sourceTree = "<group>"; };
+		200000000000000000000017 /* Textures */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Textures; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -93,6 +113,8 @@
 				100000000000000000000116 /* Assets.xcassets in Resources */,
 				100000000000000000000119 /* Backgrounds in Resources */,
 				100000000000000000000118 /* Sounds in Resources */,
+				200000000000000000000112 /* Video in Resources */,
+				200000000000000000000117 /* Textures in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -190,6 +212,13 @@
 				200000000000000000000002 /* RestOverlayStyle.swift */,
 				200000000000000000000003 /* DinosaurSceneModel.swift */,
 				200000000000000000000004 /* DinosaurRestContentView.swift */,
+				200000000000000000000006 /* CurtainBackdrop.swift */,
+				200000000000000000000007 /* AtmosphericRestBackdrop.swift */,
+				200000000000000000000011 /* SunnyLeafVideoBackdrop.swift */,
+				200000000000000000000013 /* LoopingAtmosphereVideo.swift */,
+				200000000000000000000014 /* SnowfallMetalBackdrop.swift */,
+				200000000000000000000015 /* RainGlassMetalBackdrop.swift */,
+				200000000000000000000016 /* CloudTrainMetalBackdrop.swift */,
 			);
 			path = RestOverlay;
 			sourceTree = "<group>";
@@ -198,6 +227,7 @@
 			isa = PBXGroup;
 			children = (
 				100000000000000000000024 /* GeneralSettingsScreen.swift */,
+				100000000000000000000028 /* AboutSettingsScreen.swift */,
 				100000000000000000000026 /* RestOverlaySettingsScreen.swift */,
 				200000000000000000000005 /* RestThemePicker.swift */,
 				100000000000000000000025 /* ScheduleSettingsScreen.swift */,
@@ -212,6 +242,8 @@
 			children = (
 				100000000000000000000017 /* Assets.xcassets */,
 				100000000000000000000020 /* Backgrounds */,
+				200000000000000000000012 /* Video */,
+				200000000000000000000017 /* Textures */,
 				100000000000000000000019 /* Sounds */,
 			);
 			path = Resources;
@@ -293,10 +325,18 @@
 				200000000000000000000103 /* DinosaurSceneModel.swift in Sources */,
 				200000000000000000000104 /* DinosaurRestContentView.swift in Sources */,
 				200000000000000000000105 /* RestThemePicker.swift in Sources */,
+				200000000000000000000106 /* CurtainBackdrop.swift in Sources */,
+				200000000000000000000107 /* AtmosphericRestBackdrop.swift in Sources */,
+				200000000000000000000111 /* SunnyLeafVideoBackdrop.swift in Sources */,
+				200000000000000000000113 /* LoopingAtmosphereVideo.swift in Sources */,
+				200000000000000000000114 /* SnowfallMetalBackdrop.swift in Sources */,
+				200000000000000000000115 /* RainGlassMetalBackdrop.swift in Sources */,
+				200000000000000000000116 /* CloudTrainMetalBackdrop.swift in Sources */,
 				100000000000000000000124 /* GeneralSettingsScreen.swift in Sources */,
 				100000000000000000000126 /* RestOverlaySettingsScreen.swift in Sources */,
 				100000000000000000000125 /* ScheduleSettingsScreen.swift in Sources */,
 				100000000000000000000127 /* SettingsComponents.swift in Sources */,
+				100000000000000000000128 /* AboutSettingsScreen.swift in Sources */,
 				100000000000000000000111 /* SettingsView.swift in Sources */,
 				100000000000000000000112 /* IdleMonitor.swift in Sources */,
 				100000000000000000000123 /* DisplayMirroringMonitor.swift in Sources */,
@@ -428,7 +468,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -442,7 +482,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 0.2.1;
+				MARKETING_VERSION = 0.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mercury.breather.debug;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 6.0;
@@ -456,7 +496,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -470,7 +510,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 0.2.1;
+				MARKETING_VERSION = 0.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mercury.breather;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 6.0;

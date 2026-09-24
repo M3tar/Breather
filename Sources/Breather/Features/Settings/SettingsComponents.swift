@@ -1,6 +1,10 @@
 import AppKit
 import SwiftUI
 
+enum SettingsFooterMetrics {
+    static let height: CGFloat = 40
+}
+
 struct SettingsScreenContainer<Content: View>: View {
     @ViewBuilder let content: Content
 

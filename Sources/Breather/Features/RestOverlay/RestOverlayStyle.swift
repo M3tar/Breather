@@ -82,6 +82,9 @@ struct RestOverlayStyle {
     let colorScheme: ColorScheme
 
     func solidBackground(translucent: Bool) -> Color {
+        if background == .linen {
+            return Color(red: 0.86, green: 0.83, blue: 0.76)
+        }
         let base = colorScheme == .dark
             ? Color(red: 0.075, green: 0.082, blue: 0.09)
             : Color(red: 0.88, green: 0.89, blue: 0.90)
@@ -93,6 +96,8 @@ struct RestOverlayStyle {
         switch background {
         case .solid:
             colorScheme == .dark ? .white : Color(red: 0.15, green: 0.16, blue: 0.17)
+        case .linen:
+            Color(red: 0.18, green: 0.17, blue: 0.15)
         case .moon:
             .white
         case .sun:
@@ -106,6 +111,8 @@ struct RestOverlayStyle {
             colorScheme == .dark
                 ? Color.white.opacity(0.18)
                 : Color.white.opacity(0.72)
+        case .linen:
+            Color(red: 0.96, green: 0.95, blue: 0.91).opacity(0.92)
         case .moon:
             Color.white.opacity(0.24)
         case .sun:
@@ -119,6 +126,8 @@ struct RestOverlayStyle {
             colorScheme == .dark
                 ? Color.white.opacity(0.24)
                 : Color.white.opacity(0.86)
+        case .linen:
+            Color(red: 0.92, green: 0.90, blue: 0.84).opacity(0.96)
         case .moon:
             Color.white.opacity(0.32)
         case .sun:
@@ -130,6 +139,8 @@ struct RestOverlayStyle {
         switch background {
         case .solid:
             colorScheme == .dark ? .white.opacity(0.94) : Color(red: 0.16, green: 0.17, blue: 0.18)
+        case .linen:
+            Color(red: 0.18, green: 0.17, blue: 0.15)
         case .moon:
             Color.white.opacity(0.94)
         case .sun:
@@ -141,6 +152,8 @@ struct RestOverlayStyle {
         switch background {
         case .solid:
             colorScheme == .dark ? Color.black.opacity(0.18) : Color.black.opacity(0.10)
+        case .linen:
+            Color.black.opacity(0.09)
         case .moon:
             Color.black.opacity(0.34)
         case .sun:
@@ -150,7 +163,7 @@ struct RestOverlayStyle {
 
     var imageOverlay: Color {
         switch background {
-        case .solid:
+        case .solid, .linen:
             .clear
         case .moon:
             Color.black.opacity(0.18)
@@ -163,6 +176,8 @@ struct RestOverlayStyle {
         switch background {
         case .solid:
             .clear
+        case .linen:
+            Color.white.opacity(0.30)
         case .moon:
             Color.black.opacity(0.52)
         case .sun:

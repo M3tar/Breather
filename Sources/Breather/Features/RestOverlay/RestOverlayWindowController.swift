@@ -24,6 +24,7 @@ final class RestOverlayWindowController {
     private let mouseLocation: () -> CGPoint
     private let reduceMotion: () -> Bool
     private let presentsWindows: Bool
+    private let ambientSoundService: RestAmbientSoundPlaying
     private(set) var windows: [UInt32: NSPanel] = [:]
     private(set) var session: RestOverlaySession?
     // Focus routing only; every display renders the same animated session.
@@ -39,7 +40,8 @@ final class RestOverlayWindowController {
         screens: @escaping () -> [RestOverlayScreen] = { RestOverlayScreen.connected },
         mouseLocation: @escaping () -> CGPoint = { NSEvent.mouseLocation },
         reduceMotion: @escaping () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion },
-        presentsWindows: Bool = true
+        presentsWindows: Bool = true,
+        ambientSoundService: RestAmbientSoundPlaying = RestAmbientSoundService()
     ) {
         self.scheduler = scheduler
         self.onSnooze = onSnooze
@@ -49,6 +51,7 @@ final class RestOverlayWindowController {
         self.mouseLocation = mouseLocation
         self.reduceMotion = reduceMotion
         self.presentsWindows = presentsWindows
+        self.ambientSoundService = ambientSoundService
 
         scheduler.$state.sink { [weak availability] state in
             availability?.isResting = state == .resting
@@ -65,35 +68,48 @@ final class RestOverlayWindowController {
         let workspace = NSWorkspace.shared.notificationCenter
         workspace.publisher(for: NSWorkspace.willSleepNotification)
             .merge(with: workspace.publisher(for: NSWorkspace.sessionDidResignActiveNotification))
-            .sink { [weak self] _ in self?.session?.setAnimationPaused(true) }
+            .sink { [weak self] _ in
+                self?.session?.setAnimationPaused(true)
+                self?.ambientSoundService.stop()
+            }
             .store(in: &cancellables)
         workspace.publisher(for: NSWorkspace.didWakeNotification)
             .merge(with: workspace.publisher(for: NSWorkspace.sessionDidBecomeActiveNotification))
-            .sink { [weak self] _ in self?.session?.setAnimationPaused(false) }
+            .sink { [weak self] _ in
+                self?.session?.setAnimationPaused(false)
+                self?.startAmbientSoundIfNeeded()
+            }
             .store(in: &cancellables)
     }
 
     func show() {
         guard scheduler.isResting else { return }
         hide(animated: false)
+        let countdownDelay = curtainCountdownDelay(for: scheduler.settingsStore.settings)
+        scheduler.deferCurrentRestCountdown(by: countdownDelay)
         session = RestOverlaySession(
             kind: .rest, settings: scheduler.settingsStore.settings,
             totalSeconds: Int(scheduler.settingsStore.currentCycleRules.shortBreakDuration),
             remainingSeconds: scheduler.remainingSeconds,
-            showsRecoveryNudge: scheduler.shouldShowRecoveryNudge
+            showsRecoveryNudge: scheduler.shouldShowRecoveryNudge,
+            countdownDelay: countdownDelay
         )
         present()
+        startAmbientSoundIfNeeded()
     }
 
     func preview() {
         guard !scheduler.isResting else { return }
         hide(animated: false)
+        let countdownDelay = curtainCountdownDelay(for: scheduler.settingsStore.settings)
         let preview = RestOverlaySession(
             kind: .preview, settings: scheduler.settingsStore.settings,
-            totalSeconds: Int(scheduler.settingsStore.rules.shortBreakDuration)
+            totalSeconds: Int(scheduler.settingsStore.rules.shortBreakDuration),
+            countdownDelay: countdownDelay
         )
         session = preview
         present()
+        startAmbientSoundIfNeeded()
         previewTask = Task { @MainActor [weak self, weak preview] in
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
@@ -187,6 +203,7 @@ final class RestOverlayWindowController {
     }
 
     private func hide(animated: Bool) {
+        ambientSoundService.stop()
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
         keyMonitor = nil
         previewTask?.cancel()
@@ -199,7 +216,14 @@ final class RestOverlayWindowController {
         closingSession.beginDismissal()
         guard animated, presentsWindows else { close(closingWindows); return }
 
-        if closingSession.background == .sun {
+        if closingSession.contentMode == .curtain {
+            // Keep the transparent panels alive until the opening film completes.
+            closingWindows.forEach { $0.alphaValue = 1 }
+            Task { @MainActor in
+                try? await Task.sleep(for: CurtainTiming.openingDuration)
+                self.close(closingWindows)
+            }
+        } else if closingSession.background == .sun {
             // Preserve the existing sun treatment: content fades before its background.
             closingWindows.forEach { $0.alphaValue = 1 }
             Task { @MainActor in
@@ -215,6 +239,23 @@ final class RestOverlayWindowController {
                 Task { @MainActor in self.close(closingWindows) }
             }
         }
+    }
+
+    private func curtainCountdownDelay(for settings: AppSettings) -> TimeInterval {
+        guard settings.restOverlayContentMode == .curtain,
+              settings.restOverlayFadeAnimation,
+              !reduceMotion() else { return 0 }
+        return CurtainTiming.closingDuration
+    }
+
+    private func startAmbientSoundIfNeeded() {
+        guard let session, session.contentMode == .rainy,
+              session.rainAmbienceEnabled, !session.isAnimationPaused,
+              !session.isDismissing else {
+            ambientSoundService.stop()
+            return
+        }
+        ambientSoundService.playRain()
     }
 
     private func close(_ panels: [NSPanel]) {
