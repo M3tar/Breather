@@ -3,6 +3,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var settingsStore: SettingsStore
+    @ObservedObject var updateMonitor: UpdateMonitor
     let notificationService: any NotificationSettingsServicing
     let restSoundService: RestSoundService
     var restOverlayAvailability = RestOverlayAvailability()
@@ -17,6 +18,7 @@ struct SettingsView: View {
         NavigationSplitView {
             SettingsSidebar(
                 selectedSection: $selectedSection,
+                hasAvailableUpdate: updateMonitor.availableUpdate != nil,
                 onQuit: { NSApp.terminate(nil) }
             )
             .navigationSplitViewColumnWidth(min: 150, ideal: 170, max: 200)
@@ -74,7 +76,7 @@ struct SettingsView: View {
                 onPreviewRestOverlay: onPreviewRestOverlay
             )
         case .about:
-            AboutSettingsScreen()
+            AboutSettingsScreen(updateMonitor: updateMonitor)
         }
     }
 
@@ -103,14 +105,31 @@ struct SettingsView: View {
 
 struct SettingsSidebar: View {
     @Binding var selectedSection: SettingsSectionID
+    let hasAvailableUpdate: Bool
     let onQuit: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
             List(selection: $selectedSection) {
                 ForEach(SettingsSectionID.allCases) { section in
-                    Label(section.title, systemImage: section.systemImage)
-                        .tag(section)
+                    HStack(spacing: 8) {
+                        Label(section.title, systemImage: section.systemImage)
+                        if section == .about && hasAvailableUpdate {
+                            Spacer(minLength: 2)
+                            Text("更新")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(selectedSection == .about ? .white : .blue)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(
+                                    selectedSection == .about ? Color.white.opacity(0.18) : Color.blue.opacity(0.1),
+                                    in: Capsule()
+                                )
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .accessibilityLabel(section == .about && hasAvailableUpdate ? "关于，有新版本可用" : section.title)
+                    .tag(section)
                 }
             }
             .listStyle(.sidebar)

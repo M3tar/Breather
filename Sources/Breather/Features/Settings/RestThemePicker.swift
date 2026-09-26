@@ -3,8 +3,8 @@ import SwiftUI
 struct RestThemePicker: View {
     static let displayModes: [RestOverlayContentMode] = [
         .classic,
-        .dinosaur,
         .moonlight,
+        .dinosaur,
         .curtain,
         .windowLeaves,
         .sunny,
@@ -177,6 +177,12 @@ struct RestContentOption: View {
         Button(action: onSelect) {
             VStack(alignment: .leading, spacing: 10) {
                 RestThemeThumbnail(configuration: thumbnail, animated: animatesThumbnail)
+                    .overlay(alignment: .topLeading) {
+                        if let motionBadge {
+                            RestThemeMotionBadge(title: motionBadge)
+                                .padding(6)
+                        }
+                    }
                     .overlay(alignment: .topTrailing) {
                         if isSelected {
                             Image(systemName: "checkmark.circle.fill")
@@ -197,9 +203,42 @@ struct RestContentOption: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(RestThemeOptionButtonStyle(isSelected: isSelected))
-        .accessibilityLabel(mode.title)
+        .accessibilityLabel(motionBadge.map { "\(mode.title)，\($0)" } ?? mode.title)
         .accessibilityHint(mode.summary)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+    }
+
+    private var motionBadge: String? {
+        switch mode {
+        case .dinosaur, .windowLeaves, .sunny, .rainy, .snowy, .cloudTrain:
+            "动态"
+        case .curtain:
+            "转场"
+        case .classic, .moonlight:
+            nil
+        }
+    }
+}
+
+private struct RestThemeMotionBadge: View {
+    let title: String
+
+    var body: some View {
+        if #available(macOS 26.0, *) {
+            label
+                .glassEffect(.regular, in: Capsule())
+        } else {
+            label
+                .background(.ultraThinMaterial, in: Capsule())
+        }
+    }
+
+    private var label: some View {
+        Text(title)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
     }
 }
 

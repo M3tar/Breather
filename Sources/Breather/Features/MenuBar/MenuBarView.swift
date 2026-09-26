@@ -3,7 +3,9 @@ import AppKit
 
 struct MenuBarPanelView: View {
     @ObservedObject var scheduler: BreakScheduler
+    @ObservedObject var updateMonitor: UpdateMonitor
     let onOpenSettings: () -> Void
+    let onOpenUpdate: (URL) -> Void
     let onQuit: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
@@ -49,7 +51,9 @@ struct MenuBarPanelView: View {
 
                 MenuBarView(
                     scheduler: scheduler,
+                    updateMonitor: updateMonitor,
                     onOpenSettings: onOpenSettings,
+                    onOpenUpdate: onOpenUpdate,
                     onQuit: onQuit
                 )
             }
@@ -67,7 +71,9 @@ struct MenuBarPanelView: View {
 
 struct MenuBarView: View {
     @ObservedObject var scheduler: BreakScheduler
+    @ObservedObject var updateMonitor: UpdateMonitor
     let onOpenSettings: () -> Void
+    let onOpenUpdate: (URL) -> Void
     let onQuit: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
@@ -300,7 +306,19 @@ struct MenuBarView: View {
 
             Spacer()
 
-            IconButton(systemName: "gearshape", color: theme.muted, help: "设置", action: onOpenSettings)
+            HStack(spacing: 4) {
+                if let update = updateMonitor.availableUpdate {
+                    IconButton(
+                        systemName: "arrow.down.circle.fill",
+                        color: theme.accent,
+                        help: "发现新版本 v\(update.version)，前往 GitHub 下载"
+                    ) {
+                        onOpenUpdate(update.releaseURL)
+                    }
+                }
+
+                IconButton(systemName: "gearshape", color: theme.muted, help: "设置", action: onOpenSettings)
+            }
         }
         .padding(.horizontal, 26)
         .padding(.top, 24)

@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     let settingsStore = SettingsStore()
     let notificationService = NotificationService()
+    let updateMonitor = UpdateMonitor()
     let restSoundService = RestSoundService()
     let restAmbientSoundService = RestAmbientSoundService()
     let restOverlayAvailability = RestOverlayAvailability()
@@ -44,6 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menuBarController = MenuBarController(
             scheduler: scheduler,
+            updateMonitor: updateMonitor,
             onOpenSettings: { [weak self] in
                 self?.openSettingsHandler?()
             },
@@ -106,9 +108,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         scheduler.restorePauseResumeSessionIfNeeded()
         scheduler.start()
+        updateMonitor.startAutomaticChecks()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        updateMonitor.stopAutomaticChecks()
         displayMirroringMonitor.stop()
         restOverlayController?.shutdown()
     }

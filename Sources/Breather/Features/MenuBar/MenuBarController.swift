@@ -6,6 +6,7 @@ import SwiftUI
 final class MenuBarController: NSObject {
     private let statusItem: NSStatusItem
     private let scheduler: BreakScheduler
+    private let updateMonitor: UpdateMonitor
     private let onOpenSettings: () -> Void
     private let onQuit: () -> Void
     private var cancellables: Set<AnyCancellable> = []
@@ -16,10 +17,12 @@ final class MenuBarController: NSObject {
 
     init(
         scheduler: BreakScheduler,
+        updateMonitor: UpdateMonitor,
         onOpenSettings: @escaping () -> Void,
         onQuit: @escaping () -> Void
     ) {
         self.scheduler = scheduler
+        self.updateMonitor = updateMonitor
         self.onOpenSettings = onOpenSettings
         self.onQuit = onQuit
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -91,8 +94,12 @@ final class MenuBarController: NSObject {
         panel.contentViewController = NSHostingController(
             rootView: MenuBarPanelView(
                 scheduler: scheduler,
+                updateMonitor: updateMonitor,
                 onOpenSettings: { [weak self] in
                     self?.openSettings()
+                },
+                onOpenUpdate: { [weak self] url in
+                    self?.openUpdate(url)
                 },
                 onQuit: { [weak self] in
                     self?.quit()
@@ -160,6 +167,11 @@ final class MenuBarController: NSObject {
     private func openSettings() {
         closePopover()
         onOpenSettings()
+    }
+
+    private func openUpdate(_ url: URL) {
+        closePopover()
+        NSWorkspace.shared.open(url)
     }
 
     private func quit() {

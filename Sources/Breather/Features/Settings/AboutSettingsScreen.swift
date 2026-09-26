@@ -2,6 +2,9 @@ import AppKit
 import SwiftUI
 
 struct AboutSettingsScreen: View {
+    @ObservedObject var updateMonitor: UpdateMonitor
+    @Environment(\.openURL) private var openURL
+
     private let repositoryURL = URL(string: "https://github.com/M3tar/Breather")!
     private let feedbackURL = URL(
         string: "mailto:1191527614@qq.com?subject=Breather%20%E5%8F%8D%E9%A6%88"
@@ -22,15 +25,13 @@ struct AboutSettingsScreen: View {
                     .accessibilityHidden(true)
 
                 Text("Breather")
-                    .font(.headline)
-
-                Text(versionDescription)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(.title2.weight(.semibold))
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 4)
             .padding(.bottom, 16)
+
+            versionAndUpdateGroup
 
             feedbackGroup
 
@@ -42,6 +43,48 @@ struct AboutSettingsScreen: View {
                 )
             }
         }
+        .onAppear {
+            Task { await updateMonitor.checkIfDue() }
+        }
+    }
+
+    private var versionAndUpdateGroup: some View {
+        GroupBox {
+            VStack(spacing: 0) {
+                SettingsRow(title: "版本") {
+                    Text(versionDescription)
+                        .foregroundStyle(.secondary)
+                }
+
+                SettingsDivider()
+
+                SettingsRow(title: "检查更新", description: updateMonitor.status.message) {
+                    HStack(spacing: 8) {
+                        if updateMonitor.status.isChecking {
+                            ProgressView()
+                                .controlSize(.small)
+                                .accessibilityLabel("正在检查更新")
+                        }
+
+                        Button(updateMonitor.availableUpdate == nil ? "检查更新" : "重新检查") {
+                            Task { await updateMonitor.checkNow() }
+                        }
+                        .disabled(updateMonitor.status.isChecking)
+
+                        if let update = updateMonitor.availableUpdate {
+                            Button("前往 GitHub 下载") {
+                                openURL(update.releaseURL)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.blue)
+                        }
+                    }
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .groupBoxStyle(.automatic)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var feedbackGroup: some View {
@@ -82,16 +125,18 @@ struct AboutSettingsScreen: View {
     }
 
     private var versionDescription: String {
-        let version = Bundle.main.object(
-            forInfoDictionaryKey: "CFBundleShortVersionString"
-        ) as? String
+        let version = installedVersion
         let build = Bundle.main.object(
             forInfoDictionaryKey: "CFBundleVersion"
         ) as? String
 
-        guard let version, !version.isEmpty else { return "开发版本" }
-        guard let build, !build.isEmpty else { return "版本 \(version)" }
-        return "版本 \(version)（构建 \(build)）"
+        guard !version.isEmpty else { return "开发版本" }
+        guard let build, !build.isEmpty else { return version }
+        return "\(version)（构建 \(build)）"
+    }
+
+    private var installedVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
     }
 }
 

@@ -25,6 +25,7 @@ struct BreatherApp: App {
         Window("Breather", id: "settings") {
             SettingsView(
                 settingsStore: appDelegate.settingsStore,
+                updateMonitor: appDelegate.updateMonitor,
                 notificationService: appDelegate.notificationService,
                 restSoundService: appDelegate.restSoundService,
                 restOverlayAvailability: appDelegate.restOverlayAvailability,

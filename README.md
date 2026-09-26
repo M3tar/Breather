@@ -8,11 +8,15 @@
   <a href="https://github.com/M3tar/Breather/releases/latest"><strong>Download the latest Breather DMG</strong></a>
 </p>
 
-Breather is a quiet macOS menu bar companion for people who can focus deeply—and sometimes forget to stop. It keeps the work timer close, then turns break time into a clear full-screen pause across every connected display.
+I made Breather to remind myself to pause. When I am making something, I can sit for hours. I know I should rest, yet it is easy to dismiss another reminder without thinking.
+
+So Breather stays quietly in the macOS menu bar. When it is time for a break, it gives every connected display a little space to slow down. Stand up, drink some water, look into the distance, and come back when you are ready.
 
 ## See your rhythm
 
 The menu bar popover keeps the current stage, remaining time, and next action together. A manual pause or mirrored display preserves the active timer instead of silently resetting it.
+
+Sometimes a different color can change the mood. Choose a popover color and menu bar icon that feel comfortable to keep in the corner of your screen.
 
 <p align="center">
   <img src="screenshots/timer-popover-running-jade.jpg" width="31%" alt="Breather running a focused work timer">
@@ -28,10 +32,10 @@ When a cycle ends, Breather replaces another dismissible notification with an in
 
 ### Rest themes · 0.3.0
 
-The nine themes below are in the Breather 0.3.0 source. Check the matching Release notes for the features included in a downloadable build.
+I put little things I love into these scenes: a game dinosaur, curtains before bed, a breeze through an open window, rain you can hear with your eyes closed, and a train heading somewhere far away. They became nine ways to take a break.
 
-- **A Moment of Quiet (此刻留白)** — Set the busy day down and keep this moment for yourself. Solid, translucent, moon, and sun backgrounds keep the countdown and prompts at the center.
-- **Pixel Roam (像素漫游)** — Small footsteps, with nowhere to rush. A sage-green dinosaur walks and hops over cacti automatically, accompanied by pale green clouds and mint accents. No controls, scores, or failure states.
+- **A Moment of Quiet (此刻留白)** — Breather's first design was meant to be simple and restrained. It holds some of the comfort I find in Stardew Valley: after a busy day, there is still somewhere to rest. Solid, translucent, moon, and sun backgrounds keep the countdown and prompts at the center.
+- **Pixel Roam (像素漫游)** — I have always liked Chrome's little dinosaur, even putting it on my browser theme. I made it green to feel at home in Breather. It strolls and hops over cacti on its own, with no score and no way to fail.
 
 <p align="center">
   <img src="screenshots/rest-pixel-roam-light-render.png" width="48%" alt="Actual SwiftUI component render of Pixel Roam in light appearance">
@@ -40,15 +44,25 @@ The nine themes below are in the Breather 0.3.0 source. Check the matching Relea
 
 The animation keeps its own pace regardless of break duration, while the countdown stays central. Displays with enough space animate together and share the countdown and prompts. Reduce Motion or limited space switches the character to a static presentation. This is quiet company for a break—not something to keep watching or a replacement for looking away from the screen.
 
-- **Curtain Break (幕间休息)** — Opening and closing curtains mark the transition between work and rest, with four color palettes.
-- **Moonlit Rest / Window Leaves / Sunny Leaves (月夜静栖 / 窗边叶影 / 晴日叶舞)** — Pause among moonlight, window-side foliage, or leaves in warm sunlight.
-- **Rainy Window / Quiet Snow / Cloud Train (窗前听雨 / 雪落无声 / 云海列车)** — Watch rain or snow drift down, or ride a small train through the clouds.
+- **Curtain Break (幕间休息)** — Closing the curtains before bed reminded me of a stage opening and closing. It felt like a gentle transition between work and rest. The theme comes in four palettes.
+- **Moonlit Rest (月夜静栖)** — A simpler take on the original break scene, which included a Stardew Valley screenshot. I designed it as Mid-Autumn Festival approached; thinking of reunion, I wanted to hang a round moon in the sky.
+- **Window Leaves / Sunny Leaves (窗边叶影 / 晴日叶舞)** — Many nights while making Breather, I opened the window and felt a breeze move the leaves and cast shadows on the wall. The night by the window and the bright daytime grew from the same breeze.
+- **Rainy Window (窗前听雨)** — I sometimes close my eyes during a break, so I added a continuous rain sound alongside the view. I can listen and slowly relax without looking at the screen.
+- **Quiet Snow (雪落无声)** — Beyond sunny and rainy days, I wanted a snowy one. Watching the snow fall can help me feel calmer, too. Thank you to beining for the background image; the desert snowfall in a video he shared after his trip inspired this theme.
+- **Cloud Train (云海列车)** — A train crossing a sea of clouds feels as free as a journey in an animated film. Watching it move forward reminds me that the distance is still there. I hope we keep a little courage to set out, and stay young at heart.
+
+<p align="center">
+  <img src="screenshots/rest-curtain-countdown.png" width="48%" alt="Curtain Break with dark green curtains, a central countdown, and a rest prompt">
+  <img src="screenshots/rest-leaves-countdown.png" width="48%" alt="Window Leaves with a light backdrop, a central countdown, and a rest prompt">
+</p>
+
+Curtain Break and Window Leaves during a break. These still screenshots cannot show the curtains or leaf shadows moving.
 
 Choose a theme under the rest-screen settings. Static cards reflect the configured duration and main prompt; A Moment of Quiet also reflects the selected background. One page-level preview button stays at the bottom, with separate sound auditions. Previewing does not change the work timer and ends automatically or when closed. Previews are unavailable during a real break; theme changes made then apply to the next break.
 
 ![Actual component render of the updated rest-theme cards, with Chinese interface labels](screenshots/rest-theme-cards-render.png)
 
-These three images are offscreen renders of the current SwiftUI components, not full-window screenshots. They show the actual interface content but do not demonstrate motion. English theme names above are descriptive translations of the Chinese labels shown in the app.
+The two Pixel Roam images and the theme-card image above are offscreen renders of the current SwiftUI components, not full-window screenshots. They show the actual interface content but do not demonstrate motion. English theme names above are descriptive translations of the Chinese labels shown in the app.
 
 ## A natural cycle, not a productivity contest
 
@@ -69,7 +83,9 @@ Breather also understands some of the interruptions around real work: idle time 
 
 ## Native settings, kept calm
 
-General, schedule, rest-screen, and About settings use native macOS controls and keep related choices together. You can preview the rest screen before it interrupts a real work cycle. About shows the installed version and offers email and GitHub feedback plus a link to star the repository.
+General, schedule, rest-screen, and About settings use native macOS controls and keep related choices together. You can preview the rest screen before it interrupts a real work cycle.
+
+If you also forget to pause sometimes, you are welcome to bring Breather along. It is still growing. If something feels good—or gets in your way—I would love to hear about it through the email or GitHub feedback links on the About page. You can also find the installed version, check for updates on GitHub, and star the repository there.
 
 ![Breather General settings](screenshots/settings-general.jpg)
 
@@ -85,6 +101,8 @@ Breather requires **macOS 15 or later**. The universal DMG supports both Apple s
 1. Download the latest DMG from [GitHub Releases](https://github.com/M3tar/Breather/releases).
 2. Open it and drag **Breather** into **Applications**.
 3. Launch Breather from Applications.
+
+After installation, use **About → Check for Updates** to check for a newer version at any time. Breather also checks in the background at most once every 24 hours while running. When an update is available, a theme-colored download icon appears beside the menu popover's Settings gear, and Settings marks **About** with an update badge. The icon and **Go to GitHub to Download** open that version's Release page. Download the DMG there, then open it and drag the new version into Applications.
 
 > [!IMPORTANT]
 > Breather is an early pre-release and is not yet signed with an Apple Developer ID or notarized by Apple. Install only a build downloaded from this repository.
@@ -163,10 +181,10 @@ xcodebuild \
 Create a compressed release DMG:
 
 ```sh
-./scripts/build-dmg.sh 0.2.0
+./scripts/build-dmg.sh 0.4.0
 ```
 
-The artifact is written to `dist/Breather-0.2.0.dmg`. On a development Mac with stale release registrations, inspect and repair LaunchServices with:
+The artifact is written to `dist/Breather-0.4.0.dmg`. On a development Mac with stale release registrations, inspect and repair LaunchServices with:
 
 ```sh
 ./scripts/reset-local-release-registration.sh --dry-run
@@ -179,6 +197,7 @@ The repair tool only changes LaunchServices registration; it never deletes an ap
 
 ## Releases
 
+- **[0.4.0](https://github.com/M3tar/Breather/releases/tag/v0.4.0)** — Background update checks with quiet menu bar and Settings hints, plus clearer motion labels on rest themes.
 - **[0.3.0](https://github.com/M3tar/Breather/releases/tag/v0.3.0)** — Nine rest themes, improved multi-display and preview behavior, plus an About page with email and GitHub feedback.
 - **[0.2.0](https://github.com/M3tar/Breather/releases/tag/v0.2.0)** — Native settings redesign, display-mirroring protection, clearer pause states, safer next-cycle settings, and more reliable notifications.
 - **[0.1.0](https://github.com/M3tar/Breather/releases/tag/v0.1.0)** — Initial public preview with the complete timer and full-screen rest experience.
