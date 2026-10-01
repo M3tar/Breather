@@ -111,13 +111,28 @@ final class RestOverlaySession: ObservableObject {
 }
 
 struct RestOverlayCopy {
-    let prompt: String?
-    let subtitle: String?
+    private let promptChoice: RestOverlayPrompt?
+    private let subtitleChoice: RestOverlaySubtitle?
+    private let showsRecoveryNudge: Bool
+
+    var prompt: String? { promptChoice?.title }
+    var subtitle: String? {
+        showsRecoveryNudge
+            ? L.tr("最近几次休息都被延后或跳过了，这次先把短休完成吧。")
+            : subtitleChoice?.title
+    }
 
     init(settings: AppSettings, showsRecoveryNudge: Bool = false) {
-        prompt = settings.restOverlayPrompt.resolvedTitle
-        subtitle = showsRecoveryNudge
-            ? "最近几次休息都被延后或跳过了，这次先把短休完成吧。"
-            : settings.restOverlaySubtitle.resolvedTitle
+        promptChoice = switch settings.restOverlayPrompt {
+        case .random: RestOverlayPrompt.fixedCases.randomElement()
+        case .none: nil
+        default: settings.restOverlayPrompt
+        }
+        subtitleChoice = switch settings.restOverlaySubtitle {
+        case .random: RestOverlaySubtitle.fixedCases.randomElement()
+        case .none: nil
+        default: settings.restOverlaySubtitle
+        }
+        self.showsRecoveryNudge = showsRecoveryNudge
     }
 }

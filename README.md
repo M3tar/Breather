@@ -62,7 +62,7 @@ Choose a theme under the rest-screen settings. Static cards reflect the configur
 
 ![Actual component render of the updated rest-theme cards, with Chinese interface labels](screenshots/rest-theme-cards-render.png)
 
-The two Pixel Roam images and the theme-card image above are offscreen renders of the current SwiftUI components, not full-window screenshots. They show the actual interface content but do not demonstrate motion. English theme names above are descriptive translations of the Chinese labels shown in the app.
+The two Pixel Roam images and the theme-card image above are offscreen renders of the current SwiftUI components, not full-window screenshots. They show the actual interface content but do not demonstrate motion. The theme-card image was captured with Simplified Chinese selected; theme names are also available in English and Traditional Chinese.
 
 ## A natural cycle, not a productivity contest
 
@@ -78,6 +78,7 @@ Breather also understands some of the interruptions around real work: idle time 
 - Configure work time, short breaks, pre-break notices, snooze, and skip behavior.
 - Choose from nine rest themes and separate sounds for each stage.
 - Choose light, dark, or system appearance, progress style, theme color, and menu bar icon.
+- Use Simplified Chinese, Traditional Chinese, or English, with an option to follow the system language. Switching languages updates the app immediately.
 - Apply schedule changes now or safely defer them until the next cycle.
 - Optionally launch at login and protect active timers during display mirroring.
 

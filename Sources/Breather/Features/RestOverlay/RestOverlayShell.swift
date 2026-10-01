@@ -8,6 +8,7 @@ enum RestOverlayActions {
 
 /// Shared presentation only. Scheduling, sound, persistence and windows stay outside.
 struct RestOverlayShell: View {
+    @ObservedObject private var localizationRefresh = LocalizationRefresh.shared
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var session: RestOverlaySession
@@ -44,6 +45,7 @@ struct RestOverlayShell: View {
     }
 
     var body: some View {
+        let _ = localizationRefresh.revision
         GeometryReader { proxy in
             ZStack {
                 background
@@ -162,7 +164,7 @@ struct RestOverlayShell: View {
                 .shadow(color: informationShadow, radius: 8, y: 2)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-                .accessibilityLabel("剩余时间")
+                .accessibilityLabel(L.tr("剩余时间"))
                 .accessibilityValue(session.formattedTime)
 
             if let prompt = session.copy.prompt {
@@ -195,17 +197,17 @@ struct RestOverlayShell: View {
     @ViewBuilder private var actionButtons: some View {
         switch actions {
         case let .preview(onClose):
-            Button("关闭预览", action: onClose)
+            Button(L.tr("关闭预览"), action: onClose)
                 .buttonStyle(RestOverlayActionButtonStyle(style: style))
                 .padding(.top, 10)
         case let .rest(duration, canSnooze, canSkip, onSnooze, onSkip):
             if canSnooze || canSkip {
                 HStack(spacing: 24) {
                     if canSnooze {
-                        Button("延后 \(Self.formattedDuration(duration))", action: onSnooze)
+                        Button(L.tr("延后 \(Self.formattedDuration(duration))"), action: onSnooze)
                     }
                     if canSkip {
-                        Button("跳过", action: onSkip)
+                        Button(L.tr("跳过"), action: onSkip)
                     }
                 }
                 .buttonStyle(RestOverlayActionButtonStyle(style: style))
@@ -215,7 +217,7 @@ struct RestOverlayShell: View {
     }
 
     private static func formattedDuration(_ duration: TimeInterval) -> String {
-        duration >= 60 ? "\(max(1, Int(duration / 60))) 分钟" : "\(max(1, Int(duration))) 秒"
+        duration >= 60 ? L.tr("\(max(1, Int(duration / 60))) 分钟") : L.tr("\(max(1, Int(duration))) 秒")
     }
 }
 

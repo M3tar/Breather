@@ -22,14 +22,14 @@ struct RestThemePicker: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("休息主题").font(.headline)
-            ViewThatFits(in: .horizontal) {
-                threeColumnOptions
-                twoColumnOptions
-                singleColumnOptions
+            Text(L.tr("休息主题")).font(.headline)
+            RestThemeGridLayout {
+                ForEach(Self.displayModes) { mode in
+                    option(for: mode)
+                }
             }
             if isResting && changedDuringRest {
-                Text("主题将在下次休息时使用")
+                Text(L.tr("主题将在下次休息时使用"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -38,71 +38,6 @@ struct RestThemePicker: View {
             changedDuringRest = isResting
         }
         .onChange(of: isResting) { _, _ in changedDuringRest = false }
-    }
-
-    private var singleColumnOptions: some View {
-        VStack(spacing: 12) {
-            options
-        }
-    }
-
-    private var options: some View {
-        ForEach(Self.displayModes) { mode in
-            option(for: mode)
-        }
-    }
-
-    private var threeColumnOptions: some View {
-        let modes = Self.displayModes
-        let fullRowCount = modes.count / 3
-        let remainder = modes.count % 3
-        return Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 12) {
-            ForEach(0..<fullRowCount, id: \.self) { row in
-                GridRow {
-                    ForEach(0..<3, id: \.self) { column in
-                        option(for: modes[row * 3 + column])
-                            .gridCellColumns(2)
-                    }
-                }
-            }
-            if remainder == 2 {
-                GridRow {
-                    Color.clear.gridCellUnsizedAxes(.vertical)
-                    option(for: modes[fullRowCount * 3])
-                        .gridCellColumns(2)
-                    option(for: modes[fullRowCount * 3 + 1])
-                        .gridCellColumns(2)
-                    Color.clear.gridCellUnsizedAxes(.vertical)
-                }
-            } else if remainder == 1 {
-                GridRow {
-                    Color.clear.gridCellColumns(2).gridCellUnsizedAxes(.vertical)
-                    option(for: modes[fullRowCount * 3])
-                        .gridCellColumns(2)
-                    Color.clear.gridCellColumns(2).gridCellUnsizedAxes(.vertical)
-                }
-            }
-        }
-        .frame(minWidth: 672)
-    }
-
-    private var twoColumnOptions: some View {
-        let modes = Self.displayModes
-        return Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 12) {
-            ForEach(0..<((modes.count + 1) / 2), id: \.self) { row in
-                GridRow {
-                    ForEach(0..<2, id: \.self) { column in
-                        let index = row * 2 + column
-                        if index < modes.count {
-                            option(for: modes[index])
-                        } else {
-                            Color.clear.frame(minWidth: 220)
-                        }
-                    }
-                }
-            }
-        }
-        .frame(minWidth: 440)
     }
 
     private func option(for mode: RestOverlayContentMode) -> some View {
@@ -131,6 +66,48 @@ struct RestThemePicker: View {
 
     private var allowsThumbnailAnimation: Bool {
         !reduceMotion && controlActiveState != .inactive
+    }
+}
+
+/// Choose columns from the container, then measure text at its actual card width.
+/// Ideal text widths must not change the number of columns when switching languages.
+private struct RestThemeGridLayout: Layout {
+    private let spacing: CGFloat = 12
+
+    private func columns(for width: CGFloat) -> Int {
+        width >= 672 ? 3 : width >= 440 ? 2 : 1
+    }
+
+    private func rowHeights(width: CGFloat, subviews: Subviews) -> [CGFloat] {
+        let count = columns(for: width)
+        let cardWidth = max(0, (width - CGFloat(count - 1) * spacing) / CGFloat(count))
+        var heights = Array(repeating: CGFloat.zero, count: (subviews.count + count - 1) / count)
+        for index in subviews.indices {
+            let height = subviews[index].sizeThatFits(ProposedViewSize(width: cardWidth, height: nil)).height
+            heights[index / count] = max(heights[index / count], height)
+        }
+        return heights
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = max(0, proposal.width ?? 720)
+        let heights = rowHeights(width: width, subviews: subviews)
+        return CGSize(width: width, height: heights.reduce(0, +) + CGFloat(max(0, heights.count - 1)) * spacing)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let count = columns(for: bounds.width)
+        let cardWidth = max(0, (bounds.width - CGFloat(count - 1) * spacing) / CGFloat(count))
+        let heights = rowHeights(width: bounds.width, subviews: subviews)
+        var y = bounds.minY
+        for index in subviews.indices {
+            let column = index % count
+            let row = index / count
+            if column == 0 && row > 0 { y += heights[row - 1] + spacing }
+            subviews[index].place(at: CGPoint(x: bounds.minX + CGFloat(column) * (cardWidth + spacing), y: y),
+                                  anchor: .topLeading,
+                                  proposal: ProposedViewSize(width: cardWidth, height: heights[row]))
+        }
     }
 }
 
@@ -193,27 +170,30 @@ struct RestContentOption: View {
                         }
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(mode.title).font(.body.weight(.medium))
+                    Text(mode.title)
+                        .font(.body.weight(.medium))
+                        .lineLimit(2)
                     Text(mode.summary)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .buttonStyle(RestThemeOptionButtonStyle(isSelected: isSelected))
         .accessibilityLabel(motionBadge.map { "\(mode.title)，\($0)" } ?? mode.title)
         .accessibilityHint(mode.summary)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+        .help("\(mode.title)\n\(mode.summary)")
     }
 
     private var motionBadge: String? {
         switch mode {
         case .dinosaur, .windowLeaves, .sunny, .rainy, .snowy, .cloudTrain:
-            "动态"
+            L.tr("动态")
         case .curtain:
-            "转场"
+            L.tr("转场")
         case .classic, .moonlight:
             nil
         }

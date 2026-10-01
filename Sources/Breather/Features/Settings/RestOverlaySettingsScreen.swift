@@ -11,11 +11,11 @@ enum RestOverlayBackgroundSetting: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .solid: "纯色"
-        case .translucentSolid: "半透明纯色"
-        case .linen: "亚麻米色"
-        case .moon: "月亮"
-        case .sun: "太阳"
+        case .solid: L.tr("纯色")
+        case .translucentSolid: L.tr("半透明纯色")
+        case .linen: L.tr("亚麻米色")
+        case .moon: L.tr("月亮")
+        case .sun: L.tr("太阳")
         }
     }
 
@@ -221,22 +221,22 @@ struct RestOverlaySettingsScreen: View {
     }
 
     private var appearanceGroup: some View {
-        SettingsGroup("外观") {
+        SettingsGroup(L.tr("外观")) {
             if settingsStore.settings.restOverlayContentMode == .classic {
-                SettingsRow(title: "背景样式") {
+                SettingsRow(title: L.tr("背景样式")) {
                     RestBackgroundStylePicker(selection: restOverlayBackgroundSettingBinding)
                 }
             }
 
             if settingsStore.settings.restOverlayContentMode == .curtain {
-                SettingsRow(title: "帷幕配色") {
+                SettingsRow(title: L.tr("帷幕配色")) {
                     CurtainPalettePicker(selection: curtainPaletteBinding)
                 }
             }
 
-            SettingsRow(title: "休息界面过渡动画") {
+            SettingsRow(title: L.tr("休息界面过渡动画")) {
                 SettingsSwitch(
-                    "休息界面过渡动画",
+                    L.tr("休息界面过渡动画"),
                     isOn: settingsBinding(\.restOverlayFadeAnimation)
                 )
             }
@@ -244,55 +244,45 @@ struct RestOverlaySettingsScreen: View {
     }
 
     private var copyGroup: some View {
-        SettingsGroup("文字") {
-            SettingsRow(title: "主提示语") {
-                Picker("主提示语", selection: restOverlayPromptBinding) {
-                    ForEach(RestOverlayPrompt.fixedCases) { prompt in
-                        Text(prompt.title).tag(prompt)
-                    }
-                    Divider()
-                    Text(RestOverlayPrompt.random.title).tag(RestOverlayPrompt.random)
-                    Text(RestOverlayPrompt.none.title).tag(RestOverlayPrompt.none)
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
+        SettingsGroup(L.tr("文字")) {
+            SettingsRow(title: L.tr("主提示语")) {
+                SettingsMenuPicker(L.tr("主提示语"), selection: restOverlayPromptBinding, options:
+                    RestOverlayPrompt.fixedCases.map { SettingsMenuOption(value: $0, title: $0.title) }
+                    + [SettingsMenuOption(value: .random, title: RestOverlayPrompt.random.title, separatorBefore: true),
+                       SettingsMenuOption(value: .none, title: RestOverlayPrompt.none.title)]
+                )
                 .fixedSize()
             }
 
-            SettingsRow(title: "辅助提示语") {
-                Picker("辅助提示语", selection: restOverlaySubtitleBinding) {
-                    ForEach(RestOverlaySubtitle.fixedCases) { subtitle in
-                        Text(subtitle.title).tag(subtitle)
-                    }
-                    Divider()
-                    Text(RestOverlaySubtitle.random.title).tag(RestOverlaySubtitle.random)
-                    Text(RestOverlaySubtitle.none.title).tag(RestOverlaySubtitle.none)
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
+            SettingsRow(title: L.tr("辅助提示语")) {
+                SettingsMenuPicker(L.tr("辅助提示语"), selection: restOverlaySubtitleBinding, options:
+                    RestOverlaySubtitle.fixedCases.map { SettingsMenuOption(value: $0, title: $0.title) }
+                    + [SettingsMenuOption(value: .random, title: RestOverlaySubtitle.random.title, separatorBefore: true),
+                       SettingsMenuOption(value: .none, title: RestOverlaySubtitle.none.title)]
+                )
                 .fixedSize()
             }
         }
     }
 
     private var soundGroup: some View {
-        SettingsGroup("声音") {
+        SettingsGroup(L.tr("声音")) {
             if settingsStore.settings.restOverlayContentMode == .rainy {
-                SettingsRow(title: "持续雨声") {
+                SettingsRow(title: L.tr("持续雨声")) {
                     SettingsSwitch(
-                        "持续雨声",
+                        L.tr("持续雨声"),
                         isOn: settingsBinding(\.rainAmbienceEnabled)
                     )
                 }
             }
 
-            SettingsRow(title: "进入休息") {
+            SettingsRow(title: L.tr("进入休息")) {
                 SoundEffectControl(selection: restStartSoundEffectBinding) {
                     previewSound(settingsStore.settings.restStartSoundEffect)
                 }
             }
 
-            SettingsRow(title: "结束休息") {
+            SettingsRow(title: L.tr("结束休息")) {
                 SoundEffectControl(selection: restEndSoundEffectBinding) {
                     previewSound(settingsStore.settings.restEndSoundEffect)
                 }
@@ -302,7 +292,7 @@ struct RestOverlaySettingsScreen: View {
 
     private var previewActionBar: some View {
         HStack(spacing: 8) {
-            Text("当前主题")
+            Text(L.tr("当前主题"))
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
@@ -312,18 +302,18 @@ struct RestOverlaySettingsScreen: View {
             Spacer()
 
             if availability.isResting {
-                Text("休息结束后可预览")
+                Text(L.tr("休息结束后可预览"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
             Button(action: onPreviewRestOverlay) {
-                Label("全屏预览", systemImage: "play.fill")
+                Label(L.tr("全屏预览"), systemImage: "play.fill")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.regular)
             .disabled(availability.isResting)
-            .help("预览当前休息界面设置")
+            .help(L.tr("预览当前休息界面设置"))
         }
         .padding(.horizontal, 20)
         .frame(height: SettingsFooterMetrics.height)

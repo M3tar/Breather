@@ -11,12 +11,12 @@ enum NotificationPermissionStatus: Equatable {
 
     var title: String {
         switch self {
-        case .authorized: "已授权"
-        case .provisional: "临时授权"
-        case .alertsDisabled: "横幅已关闭"
-        case .denied: "未授权"
-        case .notDetermined: "未请求"
-        case .unavailable: "不可用"
+        case .authorized: L.tr("已授权")
+        case .provisional: L.tr("临时授权")
+        case .alertsDisabled: L.tr("横幅已关闭")
+        case .denied: L.tr("未授权")
+        case .notDetermined: L.tr("未请求")
+        case .unavailable: L.tr("不可用")
         }
     }
 
@@ -114,8 +114,8 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     func sendPreBreakNotification(playSound: Bool, soundEffect: RestSoundEffect) {
         Task {
             _ = await scheduleNotification(
-                title: "快到休息时间了",
-                body: "准备喘口气，看看远处。",
+                title: L.tr("快到休息时间了"),
+                body: L.tr("准备喘口气，看看远处。"),
                 identifierPrefix: "breather.prebreak",
                 playSound: playSound,
                 soundEffect: soundEffect
@@ -128,8 +128,8 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         soundEffect: RestSoundEffect
     ) async -> NotificationPreviewResult {
         guard let identifier = await scheduleNotification(
-            title: "Breather 通知预览",
-            body: "这是一条预览通知。休息前，Breather 会用这种方式提醒你。",
+            title: L.tr("Breather 通知预览"),
+            body: L.tr("这是一条预览通知。休息前，Breather 会用这种方式提醒你。"),
             identifierPrefix: "breather.preview",
             playSound: playSound,
             soundEffect: soundEffect,

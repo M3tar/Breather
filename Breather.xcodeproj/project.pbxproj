@@ -7,9 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+        300000000000000000000008 /* SettingsMenuPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 300000000000000000000009 /* SettingsMenuPicker.swift */; };
 		100000000000000000000101 /* BreatherApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000001 /* BreatherApp.swift */; };
 		100000000000000000000102 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000002 /* AppDelegate.swift */; };
 		100000000000000000000103 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000003 /* AppSettings.swift */; };
+		300000000000000000000001 /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 300000000000000000000002 /* Localization.swift */; };
+		300000000000000000000003 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 300000000000000000000004 /* Localizable.strings */; };
 		100000000000000000000104 /* BreakRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000004 /* BreakRules.swift */; };
 		100000000000000000000105 /* BreakScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000005 /* BreakScheduler.swift */; };
 		100000000000000000000114 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000015 /* SettingsStore.swift */; };
@@ -53,9 +56,14 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+        300000000000000000000009 /* SettingsMenuPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsMenuPicker.swift; sourceTree = "<group>"; };
 		100000000000000000000001 /* BreatherApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BreatherApp.swift; sourceTree = "<group>"; };
 		100000000000000000000002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		100000000000000000000003 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		300000000000000000000002 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
+		300000000000000000000005 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		300000000000000000000006 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "zh-Hant.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		300000000000000000000007 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = "en.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		100000000000000000000004 /* BreakRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BreakRules.swift; sourceTree = "<group>"; };
 		100000000000000000000005 /* BreakScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BreakScheduler.swift; sourceTree = "<group>"; };
 		100000000000000000000015 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
@@ -115,6 +123,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				100000000000000000000116 /* Assets.xcassets in Resources */,
+				300000000000000000000003 /* Localizable.strings in Resources */,
 				100000000000000000000119 /* Backgrounds in Resources */,
 				100000000000000000000118 /* Sounds in Resources */,
 				200000000000000000000112 /* Video in Resources */,
@@ -123,6 +132,19 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		300000000000000000000004 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				300000000000000000000005 /* zh-Hans */,
+				300000000000000000000006 /* zh-Hant */,
+				300000000000000000000007 /* en */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin PBXGroup section */
 		100000000000000000000301 = {
@@ -166,6 +188,7 @@
 			isa = PBXGroup;
 			children = (
 				100000000000000000000003 /* AppSettings.swift */,
+				300000000000000000000002 /* Localization.swift */,
 				100000000000000000000004 /* BreakRules.swift */,
 				100000000000000000000005 /* BreakScheduler.swift */,
 				100000000000000000000021 /* BreakSchedulerDependencies.swift */,
@@ -238,6 +261,7 @@
 				200000000000000000000005 /* RestThemePicker.swift */,
 				100000000000000000000025 /* ScheduleSettingsScreen.swift */,
 				100000000000000000000027 /* SettingsComponents.swift */,
+				300000000000000000000009 /* SettingsMenuPicker.swift */,
 				100000000000000000000011 /* SettingsView.swift */,
 			);
 			path = Settings;
@@ -247,6 +271,7 @@
 			isa = PBXGroup;
 			children = (
 				100000000000000000000017 /* Assets.xcassets */,
+				300000000000000000000004 /* Localizable.strings */,
 				100000000000000000000020 /* Backgrounds */,
 				200000000000000000000012 /* Video */,
 				200000000000000000000017 /* Textures */,
@@ -292,10 +317,12 @@
 			};
 			buildConfigurationList = 100000000000000000000702 /* Build configuration list for PBXProject "Breather" */;
 			compatibilityVersion = "Xcode 14.0";
-			developmentRegion = en;
+			developmentRegion = "zh-Hans";
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				"zh-Hans",
+				"zh-Hant",
 				Base,
 			);
 			mainGroup = 100000000000000000000301;
@@ -314,6 +341,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				100000000000000000000101 /* BreatherApp.swift in Sources */,
+				300000000000000000000001 /* Localization.swift in Sources */,
 				100000000000000000000102 /* AppDelegate.swift in Sources */,
 				100000000000000000000103 /* AppSettings.swift in Sources */,
 				100000000000000000000104 /* BreakRules.swift in Sources */,
@@ -342,6 +370,7 @@
 				100000000000000000000126 /* RestOverlaySettingsScreen.swift in Sources */,
 				100000000000000000000125 /* ScheduleSettingsScreen.swift in Sources */,
 				100000000000000000000127 /* SettingsComponents.swift in Sources */,
+				300000000000000000000008 /* SettingsMenuPicker.swift in Sources */,
 				100000000000000000000128 /* AboutSettingsScreen.swift in Sources */,
 				100000000000000000000129 /* UpdateChecker.swift in Sources */,
 				100000000000000000000130 /* UpdateMonitor.swift in Sources */,

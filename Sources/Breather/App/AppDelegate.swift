@@ -94,6 +94,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
+        NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)
+            .merge(with: NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification))
+            .sink { [weak self] _ in
+                guard self != nil else { return }
+                LocalizationRefresh.shared.refresh()
+            }
+            .store(in: &cancellables)
+
+        LocalizationRefresh.shared.$revision
+            .dropFirst()
+            .sink { [weak self] _ in
+                self?.scheduler?.refreshLocalizedStatusText()
+                self?.menuBarController?.refreshLocalization()
+                self?.refreshMainMenuTitles()
+            }
+            .store(in: &cancellables)
+
         let workspaceNotificationCenter = NSWorkspace.shared.notificationCenter
         workspaceNotificationCenter.publisher(for: NSWorkspace.didWakeNotification)
             .merge(with: workspaceNotificationCenter.publisher(for: NSWorkspace.sessionDidBecomeActiveNotification))
@@ -186,13 +203,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         displayMirroringMonitor.start()
     }
 
+    private func refreshMainMenuTitles() {
+        guard let menu = NSApp.mainMenu else { return }
+        let titles: [Selector: String] = [
+            #selector(NSApplication.terminate(_:)): "退出 Breather",
+            Selector(("undo:")): "撤销", Selector(("redo:")): "重做",
+            #selector(NSText.cut(_:)): "剪切", #selector(NSText.copy(_:)): "复制",
+            #selector(NSText.paste(_:)): "粘贴", #selector(NSText.selectAll(_:)): "全选"
+        ]
+        func update(_ menu: NSMenu) {
+            for item in menu.items {
+                if let action = item.action, let source = titles[action] {
+                    item.title = L.tr(source)
+                }
+                if let submenu = item.submenu {
+                    if submenu.items.contains(where: { $0.action == #selector(NSText.cut(_:)) }) {
+                        submenu.title = L.tr("编辑")
+                        item.title = L.tr("编辑")
+                    }
+                    update(submenu)
+                }
+            }
+        }
+        update(menu)
+    }
+
     private func installMainMenu() {
         let mainMenu = NSMenu()
 
         let appMenuItem = NSMenuItem()
         let appMenu = NSMenu()
         appMenu.addItem(
-            withTitle: "退出 Breather",
+            withTitle: L.tr("退出 Breather"),
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
         )
@@ -200,15 +242,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mainMenu.addItem(appMenuItem)
 
         let editMenuItem = NSMenuItem()
-        let editMenu = NSMenu(title: "编辑")
-        editMenu.addItem(withTitle: "撤销", action: Selector(("undo:")), keyEquivalent: "z")
-        editMenu.addItem(withTitle: "重做", action: Selector(("redo:")), keyEquivalent: "Z")
+        let editMenu = NSMenu(title: L.tr("编辑"))
+        editMenu.addItem(withTitle: L.tr("撤销"), action: Selector(("undo:")), keyEquivalent: "z")
+        editMenu.addItem(withTitle: L.tr("重做"), action: Selector(("redo:")), keyEquivalent: "Z")
         editMenu.addItem(.separator())
-        editMenu.addItem(withTitle: "剪切", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
-        editMenu.addItem(withTitle: "复制", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
-        editMenu.addItem(withTitle: "粘贴", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: L.tr("剪切"), action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: L.tr("复制"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: L.tr("粘贴"), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
         editMenu.addItem(.separator())
-        editMenu.addItem(withTitle: "全选", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editMenu.addItem(withTitle: L.tr("全选"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
         editMenuItem.submenu = editMenu
         mainMenu.addItem(editMenuItem)
 

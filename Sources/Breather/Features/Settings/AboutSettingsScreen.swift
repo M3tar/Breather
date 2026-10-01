@@ -35,9 +35,9 @@ struct AboutSettingsScreen: View {
 
             feedbackGroup
 
-            SettingsGroup("支持项目") {
+            SettingsGroup(L.tr("支持项目")) {
                 AboutActionRow(
-                    title: "在 GitHub 点星标",
+                    title: L.tr("在 GitHub 点星标"),
                     systemImage: "star",
                     destination: repositoryURL
                 )
@@ -51,28 +51,28 @@ struct AboutSettingsScreen: View {
     private var versionAndUpdateGroup: some View {
         GroupBox {
             VStack(spacing: 0) {
-                SettingsRow(title: "版本") {
+                SettingsRow(title: L.tr("版本")) {
                     Text(versionDescription)
                         .foregroundStyle(.secondary)
                 }
 
                 SettingsDivider()
 
-                SettingsRow(title: "检查更新", description: updateMonitor.status.message) {
+                SettingsRow(title: L.tr("检查更新"), description: updateMonitor.status.message) {
                     HStack(spacing: 8) {
                         if updateMonitor.status.isChecking {
                             ProgressView()
                                 .controlSize(.small)
-                                .accessibilityLabel("正在检查更新")
+                                .accessibilityLabel(L.tr("正在检查更新"))
                         }
 
-                        Button(updateMonitor.availableUpdate == nil ? "检查更新" : "重新检查") {
+                        Button(updateMonitor.availableUpdate == nil ? L.tr("检查更新") : L.tr("重新检查")) {
                             Task { await updateMonitor.checkNow() }
                         }
                         .disabled(updateMonitor.status.isChecking)
 
                         if let update = updateMonitor.availableUpdate {
-                            Button("前往 GitHub 下载") {
+                            Button(L.tr("前往 GitHub 下载")) {
                                 openURL(update.releaseURL)
                             }
                             .buttonStyle(.borderedProminent)
@@ -90,11 +90,11 @@ struct AboutSettingsScreen: View {
     private var feedbackGroup: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text("反馈")
+                Text(L.tr("反馈"))
                     .font(.headline)
                     .fixedSize()
 
-                Text("谢谢你下载 Breather！发现了 Bug、有特别想要的功能，或者只是想夸夸设计者？都欢迎告诉我。")
+                Text(L.tr("谢谢你下载 Breather！发现了 Bug、有特别想要的功能，或者只是想夸夸设计者？都欢迎告诉我。"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -103,7 +103,7 @@ struct AboutSettingsScreen: View {
             GroupBox {
                 VStack(spacing: 0) {
                     AboutActionRow(
-                        title: "发送邮件反馈",
+                        title: L.tr("发送邮件反馈"),
                         systemImage: "envelope",
                         destination: feedbackURL
                     )
@@ -111,7 +111,7 @@ struct AboutSettingsScreen: View {
                     SettingsDivider()
 
                     AboutActionRow(
-                        title: "在 GitHub 提交反馈",
+                        title: L.tr("在 GitHub 提交反馈"),
                         systemImage: "bubble.left",
                         destination: githubFeedbackURL
                     )
@@ -130,9 +130,9 @@ struct AboutSettingsScreen: View {
             forInfoDictionaryKey: "CFBundleVersion"
         ) as? String
 
-        guard !version.isEmpty else { return "开发版本" }
+        guard !version.isEmpty else { return L.tr("开发版本") }
         guard let build, !build.isEmpty else { return version }
-        return "\(version)（构建 \(build)）"
+        return L.tr("\(version)（构建 \(build)）")
     }
 
     private var installedVersion: String {

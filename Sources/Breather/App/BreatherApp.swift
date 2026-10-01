@@ -4,14 +4,16 @@ import SwiftUI
 struct BreatherApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @Environment(\.openWindow) private var openWindow
+    @ObservedObject private var localizationRefresh = LocalizationRefresh.shared
 
     var body: some Scene {
         let _ = configureOpenSettingsHandler()
+        let _ = localizationRefresh.revision
 
         settingsWindow
         .commands {
             CommandGroup(replacing: .appSettings) {
-                Button("设置…") {
+                Button(L.tr("设置…")) {
                     appDelegate.requestSettingsWindowOpen()
                     openWindow(id: "settings")
                 }
@@ -45,7 +47,7 @@ struct BreatherApp: App {
         }
         .windowResizability(.contentMinSize)
         .defaultPosition(.center)
-        .defaultSize(width: 960, height: 680)
+        .defaultSize(width: SettingsWindowMetrics.defaultSize.width, height: SettingsWindowMetrics.defaultSize.height)
         .defaultLaunchBehavior(.suppressed)
     }
 

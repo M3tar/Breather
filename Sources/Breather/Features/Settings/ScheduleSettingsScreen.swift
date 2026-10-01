@@ -9,9 +9,9 @@ enum RestSkipSetting: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .disallowed: "不允许"
-        case .buttonOnly: "仅使用按钮"
-        case .buttonAndEscape: "按钮或 Esc 键"
+        case .disallowed: L.tr("不允许")
+        case .buttonOnly: L.tr("仅使用按钮")
+        case .buttonAndEscape: L.tr("按钮或 Esc 键")
         }
     }
 
@@ -54,29 +54,29 @@ struct ScheduleSettingsScreen: View {
     }
 
     private var workAndRestGroup: some View {
-        SettingsGroup("工作与休息") {
-            SettingsRow(title: "工作时长") {
-                DurationStepper(value: workMinutesBinding, range: 1...180, unit: "分钟")
+        SettingsGroup(L.tr("工作与休息")) {
+            SettingsRow(title: L.tr("工作时长")) {
+                DurationStepper(value: workMinutesBinding, range: 1...180, unit: L.tr("分钟"))
             }
 
-            SettingsRow(title: "短休息时长") {
-                DurationStepper(value: shortBreakSecondsBinding, range: 10...600, unit: "秒")
+            SettingsRow(title: L.tr("短休息时长")) {
+                DurationStepper(value: shortBreakSecondsBinding, range: 10...600, unit: L.tr("秒"))
             }
 
-            SettingsRow(title: "休息前通知") {
+            SettingsRow(title: L.tr("休息前通知")) {
                 DurationStepper(
                     value: preBreakNotificationSecondsBinding,
                     range: 0...120,
-                    unit: "秒前"
+                    unit: L.tr("秒前")
                 )
             }
 
             SettingsDivider()
 
-            SettingsRow(title: "规则生效时间") {
-                Picker("规则生效时间", selection: ruleChangeEffectBinding) {
-                    Text("下个周期").tag(RuleChangeEffect.nextCycle)
-                    Text("立即应用").tag(RuleChangeEffect.immediate)
+            SettingsRow(title: L.tr("规则生效时间")) {
+                Picker(L.tr("规则生效时间"), selection: ruleChangeEffectBinding) {
+                    Text(L.tr("下个周期")).tag(RuleChangeEffect.nextCycle)
+                    Text(L.tr("立即应用")).tag(RuleChangeEffect.immediate)
                 }
                 .labelsHidden()
                 .pickerStyle(.segmented)
@@ -95,20 +95,20 @@ struct ScheduleSettingsScreen: View {
     }
 
     private var timingBehaviorGroup: some View {
-        SettingsGroup("计时行为") {
+        SettingsGroup(L.tr("计时行为")) {
             SettingsRow(
-                title: "空闲后视为已休息",
-                description: "离开电脑达到这个时长后，不再补发本轮休息。"
+                title: L.tr("空闲后视为已休息"),
+                description: L.tr("离开电脑达到这个时长后，不再补发本轮休息。")
             ) {
-                DurationStepper(value: idleMinutesBinding, range: 1...30, unit: "分钟")
+                DurationStepper(value: idleMinutesBinding, range: 1...30, unit: L.tr("分钟"))
             }
 
             SettingsRow(
-                title: "屏幕镜像时暂停计时",
-                description: "仅识别 AirPlay 或有线镜像；扩展桌面和软件共享不触发。"
+                title: L.tr("屏幕镜像时暂停计时"),
+                description: L.tr("仅识别 AirPlay 或有线镜像；扩展桌面和软件共享不触发。")
             ) {
                 SettingsSwitch(
-                    "屏幕镜像时暂停计时",
+                    L.tr("屏幕镜像时暂停计时"),
                     isOn: settingsBinding(\.autoPauseDuringDisplayMirroring)
                 )
             }
@@ -116,29 +116,24 @@ struct ScheduleSettingsScreen: View {
     }
 
     private var restActionsGroup: some View {
-        SettingsGroup("休息操作") {
-            SettingsRow(title: "跳过休息") {
-                Picker("跳过休息", selection: restSkipSettingBinding) {
-                    ForEach(RestSkipSetting.allCases) { setting in
-                        Text(setting.title).tag(setting)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .fixedSize()
+        SettingsGroup(L.tr("休息操作")) {
+            SettingsRow(title: L.tr("跳过休息")) {
+                SettingsMenuPicker(L.tr("跳过休息"), selection: restSkipSettingBinding,
+                    options: RestSkipSetting.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
+                    .fixedSize()
             }
 
             SettingsDivider()
 
-            SettingsRow(title: "延后时长") {
-                DurationStepper(value: snoozeMinutesBinding, range: 1...30, unit: "分钟")
+            SettingsRow(title: L.tr("延后时长")) {
+                DurationStepper(value: snoozeMinutesBinding, range: 1...30, unit: L.tr("分钟"))
             }
 
             SettingsRow(
-                title: "连续未休息次数",
-                description: "连续延后或跳过达到此次数后，下次休息时显示短休建议。"
+                title: L.tr("连续未休息次数"),
+                description: L.tr("连续延后或跳过达到此次数后，下次休息时显示短休建议。")
             ) {
-                DurationStepper(value: recoveryNudgeThresholdBinding, range: 2...6, unit: "次")
+                DurationStepper(value: recoveryNudgeThresholdBinding, range: 2...6, unit: L.tr("次"))
             }
         }
     }
@@ -249,7 +244,7 @@ private struct RuleChangeStatusRow: View {
     @ViewBuilder
     private var applyButton: some View {
         if effect == .nextCycle, hasPendingChanges {
-            Button("本次应用到当前周期", action: onApplyNow)
+            Button(L.tr("本次应用到当前周期"), action: onApplyNow)
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .fixedSize()
@@ -259,9 +254,9 @@ private struct RuleChangeStatusRow: View {
     private var statusText: String {
         switch effect {
         case .nextCycle:
-            "将在下一完整工作周期生效"
+            L.tr("将在下一完整工作周期生效")
         case .immediate:
-            isWaitingToApply ? "正在应用到当前周期…" : "已应用到当前周期"
+            isWaitingToApply ? L.tr("正在应用到当前周期…") : L.tr("已应用到当前周期")
         }
     }
 

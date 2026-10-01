@@ -16,11 +16,11 @@ enum UpdateStatus {
 
     var message: String {
         switch self {
-        case .idle: "点击检查 GitHub 上发布的版本。"
-        case .checking: "正在检查 GitHub Releases…"
-        case .upToDate: "当前已是最新版本"
-        case let .available(update): "发现新版本 v\(update.version)，可前往 GitHub 手动下载。"
-        case .noDownload: "暂时没有已发布的 DMG。"
+        case .idle: L.tr("点击检查 GitHub 上发布的版本。")
+        case .checking: L.tr("正在检查 GitHub Releases…")
+        case .upToDate: L.tr("当前已是最新版本")
+        case let .available(update): L.tr("发现新版本 v\(update.version)，可前往 GitHub 手动下载。")
+        case .noDownload: L.tr("暂时没有已发布的 DMG。")
         case let .failed(message): message
         }
     }
@@ -142,9 +142,9 @@ final class UpdateMonitor: ObservableObject {
             }
             if isManual {
                 if case UpdateCheckError.invalidInstalledVersion = error {
-                    status = .failed("无法比较当前版本，请从正式安装的应用中检查。")
+                    status = .failed(L.tr("无法比较当前版本，请从正式安装的应用中检查。"))
                 } else {
-                    status = .failed("检查失败，请确认网络连接后重试。")
+                    status = .failed(L.tr("检查失败，请确认网络连接后重试。"))
                 }
             } else {
                 status = previousStatus

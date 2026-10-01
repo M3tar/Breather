@@ -8,8 +8,8 @@ enum RuleChangeEffect: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .nextCycle: "下个周期生效"
-        case .immediate: "立即生效"
+        case .nextCycle: L.tr("下个周期生效")
+        case .immediate: L.tr("立即生效")
         }
     }
 }
@@ -23,9 +23,9 @@ enum AppearancePreference: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .system: "跟随系统"
-        case .light: "浅色"
-        case .dark: "深色"
+        case .system: L.tr("跟随系统", context: "appearance")
+        case .light: L.tr("浅色")
+        case .dark: L.tr("深色")
         }
     }
 }
@@ -70,8 +70,8 @@ enum MenuBarPopoverProgressStyle: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .radix: "滑动刻度"
-        case .segments: "Segments 分段"
+        case .radix: L.tr("滑动刻度")
+        case .segments: L.tr("Segments 分段")
         }
     }
 }
@@ -98,8 +98,8 @@ enum MenuBarPopoverSquareColorMode: String, Codable, CaseIterable, Identifiable 
 
     var title: String {
         switch self {
-        case .followTheme: "跟随主题色"
-        case .neutral: "中性色"
+        case .followTheme: L.tr("跟随主题色")
+        case .neutral: L.tr("中性色")
         }
     }
 }
@@ -113,9 +113,9 @@ enum MenuBarPopoverAppearance: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .system: "跟随系统"
-        case .light: "浅色"
-        case .dark: "深色"
+        case .system: L.tr("跟随系统", context: "appearance")
+        case .light: L.tr("浅色")
+        case .dark: L.tr("深色")
         }
     }
 }
@@ -208,13 +208,13 @@ enum RestOverlayPrompt: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .lookFar: "请眺望远方"
-        case .breathe: "慢慢呼吸"
-        case .blink: "放松眼睛"
-        case .stretch: "伸展一下"
-        case .standUp: "站起来走走"
-        case .random: "随机"
-        case .none: "无"
+        case .lookFar: L.tr("请眺望远方")
+        case .breathe: L.tr("慢慢呼吸")
+        case .blink: L.tr("放松眼睛")
+        case .stretch: L.tr("伸展一下")
+        case .standUp: L.tr("站起来走走")
+        case .random: L.tr("随机")
+        case .none: L.tr("无")
         }
     }
 
@@ -247,13 +247,13 @@ enum RestOverlaySubtitle: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .takeBreath: "到点了，喘口气。"
-        case .softenShoulders: "放松肩颈，慢一点。"
-        case .restEyes: "让眼睛离开屏幕一会儿。"
-        case .leaveScreen: "离开屏幕，给自己一点空白。"
-        case .shortPause: "暂停一下，再继续。"
-        case .random: "随机"
-        case .none: "无"
+        case .takeBreath: L.tr("到点了，喘口气。")
+        case .softenShoulders: L.tr("放松肩颈，慢一点。")
+        case .restEyes: L.tr("让眼睛离开屏幕一会儿。")
+        case .leaveScreen: L.tr("离开屏幕，给自己一点空白。")
+        case .shortPause: L.tr("暂停一下，再继续。")
+        case .random: L.tr("随机")
+        case .none: L.tr("无")
         }
     }
 
@@ -279,10 +279,10 @@ enum RestOverlayBackground: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .solid: "纯色"
-        case .linen: "亚麻米色"
-        case .moon: "月亮"
-        case .sun: "太阳"
+        case .solid: L.tr("纯色")
+        case .linen: L.tr("亚麻米色")
+        case .moon: L.tr("月亮")
+        case .sun: L.tr("太阳")
         }
     }
 
@@ -371,14 +371,14 @@ enum RestSoundEffect: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .stardewFishHook: "鱼上钩"
-        case .stardewAchievement: "成就"
-        case .stardewSpecialItem: "特殊物品"
-        case .stardewGiveGift: "给礼物"
-        case .stardewHorseFlute: "马笛"
-        case .stardewMineral: "发现矿物"
-        case .stardewNewRecord: "新纪录"
-        case .stardewReward: "奖励"
+        case .stardewFishHook: L.tr("鱼上钩")
+        case .stardewAchievement: L.tr("成就")
+        case .stardewSpecialItem: L.tr("特殊物品")
+        case .stardewGiveGift: L.tr("给礼物")
+        case .stardewHorseFlute: L.tr("马笛")
+        case .stardewMineral: L.tr("发现矿物")
+        case .stardewNewRecord: L.tr("新纪录")
+        case .stardewReward: L.tr("奖励")
         case .boop: "Boop"
         case .breeze: "Breeze"
         case .bubble: "Bubble"
@@ -394,22 +394,22 @@ enum RestSoundEffect: String, Codable, CaseIterable, Identifiable {
         case .sonar: "Sonar"
         case .sonumi: "Sonumi"
         case .submerge: "Submerge"
-        case .glass: "放松"
-        case .ping: "清脆"
-        case .pop: "弹出"
-        case .tink: "轻响"
-        case .hero: "明亮"
-        case .purr: "柔和"
-        case .basso: "低沉"
-        case .blow: "轻吹"
-        case .bottle: "瓶音"
-        case .frog: "短促"
-        case .funk: "活泼"
-        case .morse: "电报码"
-        case .sosumi: "经典"
-        case .submarine: "下潜"
-        case .random: "随机"
-        case .none: "无"
+        case .glass: L.tr("放松")
+        case .ping: L.tr("清脆")
+        case .pop: L.tr("弹出")
+        case .tink: L.tr("轻响")
+        case .hero: L.tr("明亮")
+        case .purr: L.tr("柔和")
+        case .basso: L.tr("低沉")
+        case .blow: L.tr("轻吹")
+        case .bottle: L.tr("瓶音")
+        case .frog: L.tr("短促")
+        case .funk: L.tr("活泼")
+        case .morse: L.tr("电报码")
+        case .sosumi: L.tr("经典")
+        case .submarine: L.tr("下潜")
+        case .random: L.tr("随机")
+        case .none: L.tr("无")
         }
     }
 
@@ -509,30 +509,33 @@ enum RestOverlayContentMode: String, Codable, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .classic: "此刻留白"
-        case .dinosaur: "像素漫游"
-        case .curtain: "幕间休息"
-        case .moonlight: "月夜静栖"
-        case .windowLeaves: "窗边叶影"
-        case .sunny: "晴日叶舞"
-        case .rainy: "窗前听雨"
-        case .snowy: "雪落无声"
-        case .cloudTrain: "云海列车"
+        case .classic: L.tr("此刻留白")
+        case .dinosaur: L.tr("像素漫游")
+        case .curtain: L.tr("幕间休息")
+        case .moonlight: L.tr("月夜静栖")
+        case .windowLeaves: L.tr("窗边叶影")
+        case .sunny: L.tr("晴日叶舞")
+        case .rainy: L.tr("窗前听雨")
+        case .snowy: L.tr("雪落无声")
+        case .cloudTrain: L.tr("云海列车")
         }
     }
 
     var summary: String {
-        switch self {
-        case .classic: "把忙碌轻轻放下，让这一刻只属于你"
-        case .dinosaur: "小小的脚步，走过一段不赶路的时光"
-        case .curtain: "合上工作，休息片刻；再拉开帷幕继续"
-        case .moonlight: "月光与星点，让夜色慢下来"
-        case .windowLeaves: "让日光与枝叶投影陪你停一会儿"
-        case .sunny: "金色日光里，看叶片轻轻落下"
-        case .rainy: "看雨滴沿窗缓缓滑落，听一会儿雨"
-        case .snowy: "看雪花缓缓落下，留一点安静"
-        case .cloudTrain: "乘着小火车，慢慢驶过晚霞与云海"
+        let text = switch self {
+        case .classic: L.tr("把忙碌轻轻放下，让这一刻只属于你")
+        case .dinosaur: L.tr("小小的脚步，走过一段不赶路的时光")
+        case .curtain: L.tr("合上工作，休息片刻；再拉开帷幕继续")
+        case .moonlight: L.tr("月光与星点，让夜色慢下来")
+        case .windowLeaves: L.tr("让日光与枝叶投影陪你停一会儿")
+        case .sunny: L.tr("金色日光里，看叶片轻轻落下")
+        case .rainy: L.tr("看雨滴沿窗缓缓滑落，听一会儿雨")
+        case .snowy: L.tr("看雪花缓缓落下，留一点安静")
+        case .cloudTrain: L.tr("乘着小火车，慢慢驶过晚霞与云海")
         }
+        // Card descriptions share sentence punctuation across all three languages.
+        if text.hasSuffix(".") || text.hasSuffix("。") { return text }
+        return text + (AppLanguage.effective == .english ? "." : "。")
     }
 
     init(from decoder: Decoder) throws {
@@ -551,10 +554,10 @@ enum CurtainPalette: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .smokedJade: "烟熏玉石"
-        case .warmLinen: "暖石燕麦"
-        case .mistBlue: "雾霾蓝灰"
-        case .blackCherry: "黑樱桃红"
+        case .smokedJade: L.tr("烟熏玉石")
+        case .warmLinen: L.tr("暖石燕麦")
+        case .mistBlue: L.tr("雾霾蓝灰")
+        case .blackCherry: L.tr("黑樱桃红")
         }
     }
 }

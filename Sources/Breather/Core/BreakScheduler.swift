@@ -18,7 +18,7 @@ enum PauseReason: Hashable {
 final class BreakScheduler: ObservableObject {
     @Published private(set) var state: BreakState = .working
     @Published private(set) var remainingSeconds: Int
-    @Published private(set) var statusText: String = "工作结束后，休息 30 秒"
+    @Published private(set) var statusText: String = L.tr("工作结束后，休息 30 秒")
     @Published private(set) var consecutiveMissedBreaks: Int = 0
     @Published private(set) var pauseReasons: Set<PauseReason> = []
     @Published private(set) var pauseResumeSession: PauseResumeSession?
@@ -79,15 +79,15 @@ final class BreakScheduler: ObservableObject {
 
     var menuBarTitle: String {
         if isDisplayMirroringPauseActive {
-            return "镜像中"
+            return L.tr("镜像中")
         }
 
         if isUserPauseActive {
             if let pauseResumeRemainingSeconds {
                 let minutes = max(1, Int(ceil(Double(pauseResumeRemainingSeconds) / 60.0)))
-                return "暂停 \(minutes)m"
+                return L.tr("暂停 \(minutes)m")
             }
-            return "已暂停"
+            return L.tr("已暂停")
         }
 
         guard settingsStore.settings.showCountdownInMenuBar else { return "Breather" }
@@ -106,43 +106,43 @@ final class BreakScheduler: ObservableObject {
 
     var pauseStatusText: String? {
         if isDisplayMirroringPauseActive {
-            return "屏幕镜像中 · 休息提醒已暂停"
+            return L.tr("屏幕镜像中 · 休息提醒已暂停")
         }
         if let pauseResumeRemainingSeconds, isUserPauseActive {
-            return "已暂停 · \(formattedDuration(pauseResumeRemainingSeconds))后重新开始"
+            return L.tr("已暂停 · \(formattedDuration(pauseResumeRemainingSeconds))后重新开始")
         }
         if isUserPauseActive {
-            return "已暂停 · 直到手动继续"
+            return L.tr("已暂停 · 直到手动继续")
         }
         return nil
     }
 
     var pauseContextTitle: String? {
         if isDisplayMirroringPauseActive {
-            return "屏幕镜像中"
+            return L.tr("屏幕镜像中")
         }
         if isUserPauseActive {
-            return "Breather 已暂停"
+            return L.tr("Breather 已暂停")
         }
         return nil
     }
 
     var pauseContextDetail: String? {
         if isDisplayMirroringPauseActive {
-            return "休息提醒已暂停"
+            return L.tr("休息提醒已暂停")
         }
         if let pauseResumeRemainingSeconds, isUserPauseActive {
-            return "\(formattedDuration(pauseResumeRemainingSeconds))后重新开始完整工作周期"
+            return L.tr("\(formattedDuration(pauseResumeRemainingSeconds))后重新开始完整工作周期")
         }
         if isUserPauseActive {
-            return "不会提醒休息，直到你手动继续"
+            return L.tr("不会提醒休息，直到你手动继续")
         }
         return nil
     }
 
     var pauseContextFootnote: String? {
         if isDisplayMirroringPauseActive {
-            return "检测到 AirPlay 或有线屏幕镜像"
+            return L.tr("检测到 AirPlay 或有线屏幕镜像")
         }
         return nil
     }
@@ -497,31 +497,35 @@ final class BreakScheduler: ObservableObject {
 
         switch state {
         case .working, .notifying:
-            statusText = "工作结束后，休息 \(Int(settingsStore.currentCycleRules.shortBreakDuration)) 秒"
+            statusText = L.tr("工作结束后，休息 \(Int(settingsStore.currentCycleRules.shortBreakDuration)) 秒")
         case .resting:
-            statusText = "请眺望远方"
+            statusText = L.tr("请眺望远方")
         case .snoozing:
-            statusText = "\(formattedSnoozeDuration(remainingSeconds))后补休"
+            statusText = L.tr("\(formattedSnoozeDuration(remainingSeconds))后补休")
         case .paused:
-            statusText = "已暂停"
+            statusText = L.tr("已暂停")
         case .idleRested:
-            statusText = "已休息，重新开始"
+            statusText = L.tr("已休息，重新开始")
         }
+    }
+
+    func refreshLocalizedStatusText() {
+        updateStatusText()
     }
 
     private func formattedDuration(_ seconds: Int) -> String {
         if seconds >= 60 {
             let minutes = max(1, Int(ceil(Double(seconds) / 60.0)))
-            return "\(minutes) 分钟"
+            return L.tr("\(minutes) 分钟")
         }
-        return "\(max(1, seconds)) 秒"
+        return L.tr("\(max(1, seconds)) 秒")
     }
 
     private func formattedSnoozeDuration(_ seconds: Int) -> String {
         if seconds >= 60 {
             let minutes = max(1, Int(ceil(Double(seconds) / 60.0)))
-            return "\(minutes) 分钟"
+            return L.tr("\(minutes) 分钟")
         }
-        return "\(max(1, seconds)) 秒"
+        return L.tr("\(max(1, seconds)) 秒")
     }
 }

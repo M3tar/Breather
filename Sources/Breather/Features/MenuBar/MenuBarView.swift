@@ -3,6 +3,7 @@ import AppKit
 
 struct MenuBarPanelView: View {
     @ObservedObject var scheduler: BreakScheduler
+    @ObservedObject private var localizationRefresh = LocalizationRefresh.shared
     @ObservedObject var updateMonitor: UpdateMonitor
     let onOpenSettings: () -> Void
     let onOpenUpdate: (URL) -> Void
@@ -15,7 +16,7 @@ struct MenuBarPanelView: View {
     }
 
     private var theme: RotorTheme {
-        RotorTheme(
+        RotorTheme.cached(
             colorScheme: effectiveColorScheme,
             themeColor: settings.menuBarPopoverThemeColor,
             squareColorMode: settings.menuBarPopoverSquareColorMode
@@ -34,6 +35,7 @@ struct MenuBarPanelView: View {
     }
 
     var body: some View {
+        let _ = localizationRefresh.revision
         ZStack(alignment: .top) {
             VStack(spacing: -1) {
                 PopoverArrow()
@@ -79,15 +81,13 @@ struct MenuBarView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHoveringRotor = false
-    @State private var frozenRotationDegrees = 18.0
-    @State private var rotationAnchorDate = Date()
 
     private var settings: AppSettings {
         scheduler.settingsStore.settings
     }
 
     private var theme: RotorTheme {
-        RotorTheme(
+        RotorTheme.cached(
             colorScheme: effectiveColorScheme,
             themeColor: settings.menuBarPopoverThemeColor,
             squareColorMode: settings.menuBarPopoverSquareColorMode
@@ -142,19 +142,19 @@ struct MenuBarView: View {
 
     private var fullWorkCycleText: String {
         let minutes = max(1, Int((scheduler.settingsStore.rules.workDuration / 60).rounded()))
-        return "完整 \(minutes) 分钟工作周期"
+        return L.tr("完整 \(minutes) 分钟工作周期")
     }
 
     private var nextStepTitle: String {
         switch scheduler.state {
         case .working, .notifying:
-            "本轮结束后进入休息"
+            L.tr("本轮结束后进入休息")
         case .resting:
-            "休息结束后开始工作"
+            L.tr("休息结束后开始工作")
         case .snoozing:
-            "稍后重新提醒休息"
+            L.tr("稍后重新提醒休息")
         case .idleRested:
-            "活动后重新开始工作"
+            L.tr("活动后重新开始工作")
         case .paused:
             ""
         }
@@ -179,10 +179,10 @@ struct MenuBarView: View {
         switch state {
         case .working, .notifying, .snoozing:
             duration = currentCycleRules.shortBreakDuration
-            label = "休息"
+            label = L.tr("休息")
         case .resting, .idleRested, .paused:
             duration = savedRules.workDuration
-            label = "工作"
+            label = L.tr("工作")
         }
 
         return "\(label) \(Self.formattedNextStepDuration(duration))"
@@ -191,34 +191,26 @@ struct MenuBarView: View {
     static func formattedNextStepDuration(_ duration: TimeInterval) -> String {
         let totalSeconds = max(1, Int(duration))
         guard totalSeconds >= 60 else {
-            return "\(totalSeconds) 秒"
+            return L.tr("\(totalSeconds) 秒")
         }
 
         let minutes = totalSeconds / 60
         let seconds = totalSeconds % 60
         guard seconds > 0 else {
-            return "\(minutes) 分钟"
+            return L.tr("\(minutes) 分钟")
         }
-        return "\(minutes) 分 \(seconds) 秒"
+        return L.tr("\(minutes) 分 \(seconds) 秒")
     }
 
     private var pauseContextAccessibilityLabel: String {
         if scheduler.isDisplayMirroringPauseActive {
-            return "屏幕镜像中，休息提醒已暂停。当前工作计时停在 \(scheduler.formattedTime)。结束镜像后自动重新开始\(fullWorkCycleText)"
+            return L.tr("屏幕镜像中，休息提醒已暂停。当前工作计时停在 \(scheduler.formattedTime)。结束镜像后自动重新开始\(fullWorkCycleText)")
         }
-        return scheduler.pauseStatusText ?? "Breather 已暂停"
-    }
-
-    private var shouldRotateSquare: Bool {
-        !scheduler.isPaused && !reduceMotion
+        return scheduler.pauseStatusText ?? L.tr("Breather 已暂停")
     }
 
     private var squareAppearance: RotorSquareAppearance {
         theme.squareAppearance(for: settings.menuBarPopoverSquareStyle)
-    }
-
-    private var squareRotationSpeed: Double {
-        360 / squareAppearance.rotationDuration
     }
 
     var body: some View {
@@ -283,26 +275,11 @@ struct MenuBarView: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
-        .onAppear(perform: startSquareRotationIfNeeded)
-        .onChange(of: scheduler.isPaused) { _, isPaused in
-            if isPaused {
-                freezeSquareRotation()
-            } else {
-                startSquareRotationIfNeeded()
-            }
-        }
-        .onChange(of: reduceMotion) { _, isReduced in
-            if isReduced {
-                freezeSquareRotation()
-            } else {
-                startSquareRotationIfNeeded()
-            }
-        }
     }
 
     private var header: some View {
         HStack {
-            IconButton(systemName: "power", color: theme.muted, help: "退出 Breather", action: onQuit)
+            IconButton(systemName: "power", color: theme.muted, help: L.tr("退出 Breather"), action: onQuit)
 
             Spacer()
 
@@ -311,13 +288,13 @@ struct MenuBarView: View {
                     IconButton(
                         systemName: "arrow.down.circle.fill",
                         color: theme.accent,
-                        help: "发现新版本 v\(update.version)，前往 GitHub 下载"
+                        help: L.tr("发现新版本 v\(update.version)，前往 GitHub 下载")
                     ) {
                         onOpenUpdate(update.releaseURL)
                     }
                 }
 
-                IconButton(systemName: "gearshape", color: theme.muted, help: "设置", action: onOpenSettings)
+                IconButton(systemName: "gearshape", color: theme.muted, help: L.tr("设置"), action: onOpenSettings)
             }
         }
         .padding(.horizontal, 26)
@@ -344,10 +321,11 @@ struct MenuBarView: View {
 
     private var rotorContent: some View {
         ZStack {
-            TimelineView(.animation) { timeline in
-                square
-                    .rotationEffect(.degrees(rotationDegrees(at: timeline.date)))
-            }
+            RotatingMenuSquare(
+                appearance: squareAppearance,
+                isPaused: scheduler.isPaused,
+                reduceMotion: reduceMotion
+            )
 
             Image(systemName: rotorSystemImage)
                 .font(.system(size: scheduler.isPaused ? 15 : 14, weight: .bold))
@@ -368,17 +346,9 @@ struct MenuBarView: View {
 
     private var rotorAccessibilityLabel: String {
         if scheduler.isDisplayMirroringPauseActive {
-            return "屏幕镜像中，结束镜像后自动重新开始完整工作周期"
+            return L.tr("屏幕镜像中，结束镜像后自动重新开始完整工作周期")
         }
-        return scheduler.isPaused ? "继续" : "暂停"
-    }
-
-    private var square: some View {
-        RoundedRectangle(cornerRadius: 7, style: .continuous)
-            .fill(squareAppearance.fill)
-            .frame(width: 34, height: 34)
-            .modifier(SquareShadowModifier(appearance: squareAppearance))
-            .opacity(scheduler.isPaused ? squareAppearance.pausedOpacity : 1)
+        return scheduler.isPaused ? L.tr("继续") : L.tr("暂停")
     }
 
     @ViewBuilder
@@ -416,19 +386,19 @@ struct MenuBarView: View {
                 PauseAutoResumeMenu(scheduler: scheduler, theme: theme)
 
                 Button(action: scheduler.continueUserPause) {
-                    Text("继续计时")
+                    Text(L.tr("继续计时"))
                 }
                 .buttonStyle(RotorActionButtonStyle(theme: theme, isPrimary: true))
             }
         } else {
             HStack(spacing: 12) {
                 Button(action: scheduler.resetWorkCycle) {
-                    Text("重置")
+                    Text(L.tr("重置"))
                 }
                 .buttonStyle(RotorActionButtonStyle(theme: theme, isPrimary: false))
 
                 Button(action: scheduler.startRestNow) {
-                    Text("休息")
+                    Text(L.tr("休息"))
                 }
                 .buttonStyle(RotorActionButtonStyle(theme: theme, isPrimary: true))
             }
@@ -448,7 +418,7 @@ struct MenuBarView: View {
             .frame(width: 36, height: 36)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(scheduler.pauseContextTitle ?? "已暂停")
+                Text(scheduler.pauseContextTitle ?? L.tr("已暂停"))
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(theme.text)
 
@@ -540,7 +510,7 @@ struct MenuBarView: View {
                     .foregroundStyle(theme.accent.opacity(0.64))
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("结束镜像后自动重新开始")
+                    Text(L.tr("结束镜像后自动重新开始"))
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(theme.text.opacity(0.72))
                     Text(fullWorkCycleText)
@@ -563,6 +533,35 @@ struct MenuBarView: View {
         .frame(maxWidth: .infinity)
         .frame(height: 52)
         .accessibilityElement(children: .combine)
+    }
+}
+
+// Only this leaf evaluates on animation frames. Appearance is resolved by the
+// parent and pause/reduce-motion stop the schedule, while retaining the angle.
+private struct RotatingMenuSquare: View {
+    let appearance: RotorSquareAppearance
+    let isPaused: Bool
+    let reduceMotion: Bool
+    @State private var frozenRotationDegrees = 18.0
+    @State private var rotationAnchorDate = Date()
+
+    private var shouldRotateSquare: Bool { !isPaused && !reduceMotion }
+    private var squareRotationSpeed: Double { 360 / appearance.rotationDuration }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !shouldRotateSquare)) { timeline in
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(appearance.fill)
+                .frame(width: 34, height: 34)
+                .modifier(SquareShadowModifier(appearance: appearance))
+                .opacity(isPaused ? appearance.pausedOpacity : 1)
+                .rotationEffect(.degrees(rotationDegrees(at: timeline.date)))
+        }
+        .onAppear(perform: startSquareRotationIfNeeded)
+        .onChange(of: shouldRotateSquare) { _, rotates in
+            if rotates { startSquareRotationIfNeeded() }
+            else { freezeSquareRotation() }
+        }
     }
 
     private func startSquareRotationIfNeeded() {
@@ -710,13 +709,13 @@ private struct PauseAutoResumeMenu: View {
     var body: some View {
         Menu {
             if let remainingSeconds = scheduler.pauseResumeRemainingSeconds {
-                Button("将在\(formattedDuration(remainingSeconds))后重新开始") { }
+                Button(L.tr("将在\(formattedDuration(remainingSeconds))后重新开始")) { }
                     .disabled(true)
                 Divider()
             }
 
             ForEach(PauseResumeDurationOption.allCases) { option in
-                Button("\(option.title)后重新开始") {
+                Button(L.tr("\(option.title)后重新开始")) {
                     scheduler.beginPauseAutoResume(
                         until: Date().addingTimeInterval(option.duration)
                     )
@@ -725,7 +724,7 @@ private struct PauseAutoResumeMenu: View {
 
             if scheduler.pauseResumeSession != nil {
                 Divider()
-                Button("取消自动恢复") {
+                Button(L.tr("取消自动恢复")) {
                     scheduler.cancelPauseAutoResume()
                 }
             }
@@ -761,22 +760,22 @@ private struct PauseAutoResumeMenu: View {
         .menuIndicator(.hidden)
         .tint(theme.text.opacity(0.86))
         .frame(maxWidth: .infinity)
-        .help("设置自动恢复时间")
+        .help(L.tr("设置自动恢复时间"))
         .accessibilityLabel(accessibilityLabel)
     }
 
     private var labelTitle: String {
         guard let remainingSeconds = scheduler.pauseResumeRemainingSeconds else {
-            return "自动恢复"
+            return L.tr("自动恢复")
         }
-        return "自动恢复 \(compactDuration(remainingSeconds))"
+        return L.tr("自动恢复 \(compactDuration(remainingSeconds))")
     }
 
     private var accessibilityLabel: String {
         guard let remainingSeconds = scheduler.pauseResumeRemainingSeconds else {
-            return "设置暂停后自动恢复时间"
+            return L.tr("设置暂停后自动恢复时间")
         }
-        return "已设置在\(formattedDuration(remainingSeconds))后自动恢复，可修改时间"
+        return L.tr("已设置在\(formattedDuration(remainingSeconds))后自动恢复，可修改时间")
     }
 
     private func compactDuration(_ seconds: Int) -> String {
@@ -790,9 +789,9 @@ private struct PauseAutoResumeMenu: View {
     private func formattedDuration(_ seconds: Int) -> String {
         let minutes = max(1, Int(ceil(Double(seconds) / 60.0)))
         if minutes >= 60, minutes.isMultiple(of: 60) {
-            return "\(minutes / 60) 小时"
+            return L.tr("\(minutes / 60) 小时")
         }
-        return "\(minutes) 分钟"
+        return L.tr("\(minutes) 分钟")
     }
 }
 
@@ -815,10 +814,10 @@ private enum PauseResumeDurationOption: CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .thirtyMinutes: "30 分钟"
-        case .oneHour: "1 小时"
-        case .twoHours: "2 小时"
-        case .fourHours: "4 小时"
+        case .thirtyMinutes: L.tr("30 分钟")
+        case .oneHour: L.tr("1 小时")
+        case .twoHours: L.tr("2 小时")
+        case .fourHours: L.tr("4 小时")
         }
     }
 }
@@ -893,6 +892,26 @@ private struct RotorActionButtonStyle: ButtonStyle {
 }
 
 private struct RotorTheme {
+    private struct CacheKey: Hashable {
+        let isDark: Bool
+        let themeColor: MenuBarPopoverThemeColor
+        let squareColorMode: MenuBarPopoverSquareColorMode
+    }
+
+    @MainActor private static var cache: [CacheKey: RotorTheme] = [:]
+
+    @MainActor static func cached(
+        colorScheme: ColorScheme,
+        themeColor: MenuBarPopoverThemeColor,
+        squareColorMode: MenuBarPopoverSquareColorMode
+    ) -> RotorTheme {
+        let key = CacheKey(isDark: colorScheme == .dark, themeColor: themeColor, squareColorMode: squareColorMode)
+        if let theme = cache[key] { return theme }
+        let theme = RotorTheme(colorScheme: colorScheme, themeColor: themeColor, squareColorMode: squareColorMode)
+        cache[key] = theme
+        return theme
+    }
+
     let surfaceGradient: LinearGradient
     let chromeFill: Color
     let backgroundGlow: Color
@@ -1245,34 +1264,12 @@ private extension Color {
     }
 
     func mix(with other: Color, amount: Double) -> Color {
-        Color(
-            red: resolvedRed * (1 - amount) + other.resolvedRed * amount,
-            green: resolvedGreen * (1 - amount) + other.resolvedGreen * amount,
-            blue: resolvedBlue * (1 - amount) + other.resolvedBlue * amount
+        let left = NSColor(self).usingColorSpace(.sRGB)
+        let right = NSColor(other).usingColorSpace(.sRGB)
+        return Color(
+            red: Double(left?.redComponent ?? 0) * (1 - amount) + Double(right?.redComponent ?? 0) * amount,
+            green: Double(left?.greenComponent ?? 0) * (1 - amount) + Double(right?.greenComponent ?? 0) * amount,
+            blue: Double(left?.blueComponent ?? 0) * (1 - amount) + Double(right?.blueComponent ?? 0) * amount
         )
-    }
-
-    private var resolvedRed: Double {
-        #if os(macOS)
-        Double(NSColor(self).usingColorSpace(.sRGB)?.redComponent ?? 0)
-        #else
-        0
-        #endif
-    }
-
-    private var resolvedGreen: Double {
-        #if os(macOS)
-        Double(NSColor(self).usingColorSpace(.sRGB)?.greenComponent ?? 0)
-        #else
-        0
-        #endif
-    }
-
-    private var resolvedBlue: Double {
-        #if os(macOS)
-        Double(NSColor(self).usingColorSpace(.sRGB)?.blueComponent ?? 0)
-        #else
-        0
-        #endif
     }
 }

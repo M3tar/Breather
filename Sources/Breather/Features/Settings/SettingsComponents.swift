@@ -1,6 +1,12 @@
 import AppKit
 import SwiftUI
 
+enum SettingsWindowMetrics {
+    static let minimumSize = CGSize(width: 760, height: 560)
+    static let defaultSize = CGSize(width: 1080, height: 720)
+    static let contentMaxWidth: CGFloat = 840
+}
+
 enum SettingsFooterMetrics {
     static let height: CGFloat = 40
 }
@@ -19,7 +25,7 @@ struct SettingsScreenContainer<Content: View>: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 18)
-            .frame(maxWidth: 760, alignment: .leading)
+            .frame(maxWidth: SettingsWindowMetrics.contentMaxWidth, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .scrollDismissesKeyboard(.immediately)
@@ -70,19 +76,10 @@ struct SettingsRow<Control: View>: View {
     }
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .center, spacing: 18) {
-                label
-                Spacer(minLength: 20)
-                control
-                    .fixedSize(horizontal: true, vertical: false)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                label
-                control
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
+        SettingsRowLayout {
+            label
+            control
+                .fixedSize(horizontal: true, vertical: false)
         }
         .padding(.leading, 14)
         .padding(.trailing, 14)
@@ -101,7 +98,43 @@ struct SettingsRow<Control: View>: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .layoutPriority(1)
+    }
+}
+
+/// Reposition the same label and control when a row needs to wrap. Duplicating
+/// them in ViewThatFits would recreate native controls when the selection grows.
+private struct SettingsRowLayout: Layout {
+    private let horizontalSpacing: CGFloat = 38
+    private let verticalSpacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let sizes = measure(width: proposal.width, subviews: subviews)
+        return CGSize(width: sizes.width, height: sizes.stacked
+            ? sizes.label.height + verticalSpacing + sizes.control.height
+            : max(sizes.label.height, sizes.control.height))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let sizes = measure(width: bounds.width, subviews: subviews)
+        let labelY = sizes.stacked ? bounds.minY : bounds.midY - sizes.label.height / 2
+        let controlY = sizes.stacked
+            ? bounds.minY + sizes.label.height + verticalSpacing
+            : bounds.midY - sizes.control.height / 2
+        subviews[0].place(at: CGPoint(x: bounds.minX, y: labelY), anchor: .topLeading,
+                          proposal: ProposedViewSize(sizes.label))
+        subviews[1].place(at: CGPoint(x: bounds.maxX - sizes.control.width, y: controlY), anchor: .topLeading,
+                          proposal: ProposedViewSize(sizes.control))
+    }
+
+    private func measure(width: CGFloat?, subviews: Subviews) -> (width: CGFloat, label: CGSize, control: CGSize, stacked: Bool) {
+        let labelIdeal = subviews[0].sizeThatFits(.unspecified)
+        let control = subviews[1].sizeThatFits(.unspecified)
+        let idealWidth = labelIdeal.width + horizontalSpacing + control.width
+        let available = width.flatMap { $0.isFinite ? $0 : nil } ?? idealWidth
+        let stacked = available < idealWidth
+        let labelWidth = stacked ? available : max(0, available - horizontalSpacing - control.width)
+        let label = subviews[0].sizeThatFits(ProposedViewSize(width: labelWidth, height: nil))
+        return (available, label, control, stacked)
     }
 }
 
@@ -136,16 +169,11 @@ struct SoundEffectControl: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Picker("提示音", selection: $selection) {
-                ForEach(RestSoundEffect.fixedCases) { effect in
-                    Text(effect.title).tag(effect)
-                }
-                Divider()
-                Text(RestSoundEffect.random.title).tag(RestSoundEffect.random)
-                Text(RestSoundEffect.none.title).tag(RestSoundEffect.none)
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
+            SettingsMenuPicker(L.tr("提示音"), selection: $selection, options:
+                RestSoundEffect.fixedCases.map { SettingsMenuOption(value: $0, title: $0.title) }
+                + [SettingsMenuOption(value: .random, title: RestSoundEffect.random.title, separatorBefore: true),
+                   SettingsMenuOption(value: .none, title: RestSoundEffect.none.title)]
+            )
             .fixedSize()
 
             Button(action: onPreview) {
@@ -154,8 +182,8 @@ struct SoundEffectControl: View {
             }
             .buttonStyle(.plain)
             .disabled(selection == .none)
-            .help("播放提示音")
-            .accessibilityLabel("播放提示音")
+            .help(L.tr("播放提示音"))
+            .accessibilityLabel(L.tr("播放提示音"))
         }
     }
 }

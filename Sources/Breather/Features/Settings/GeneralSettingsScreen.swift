@@ -41,9 +41,9 @@ enum MenuBarCountdownSetting: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .hidden: "不显示"
-        case .minutes: "分钟"
-        case .minutesAndSeconds: "分钟和秒"
+        case .hidden: L.tr("不显示")
+        case .minutes: L.tr("分钟")
+        case .minutesAndSeconds: L.tr("分钟和秒")
         }
     }
 
@@ -74,6 +74,7 @@ enum MenuBarCountdownSetting: String, CaseIterable, Identifiable {
 
 struct GeneralSettingsScreen: View {
     @ObservedObject var settingsStore: SettingsStore
+    @State private var languageCode = AppLanguage.selected.rawValue
     let notificationService: any NotificationSettingsServicing
     let restSoundService: RestSoundService
 
@@ -106,22 +107,39 @@ struct GeneralSettingsScreen: View {
         .onDisappear {
             notificationFeedbackTask?.cancel()
         }
+        .onReceive(LocalizationRefresh.shared.$revision) { _ in
+            languageCode = AppLanguage.selected.rawValue
+        }
     }
 
     private var applicationGroup: some View {
-        SettingsGroup("应用") {
-            SettingsRow(title: "应用外观") {
-                Picker("应用外观", selection: appearancePreferenceBinding) {
-                    ForEach(AppearancePreference.allCases) { preference in
-                        Text(preference.title).tag(preference)
+        SettingsGroup(L.tr("应用")) {
+            SettingsRow(title: L.tr("界面语言")) {
+                SettingsMenuPicker(L.tr("界面语言"), selection: Binding(
+                    get: { languageCode },
+                    set: { newValue in
+                        languageCode = newValue
+                        // Apply on the next run-loop turn, after native menu tracking ends.
+                        DispatchQueue.main.async {
+                            UserDefaults.standard.set(newValue, forKey: AppLanguage.preferenceKey)
+                            LocalizationRefresh.shared.refresh()
+                        }
                     }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
+                ), options: AppLanguage.allCases.map {
+                    SettingsMenuOption(value: $0.rawValue, title: $0.title)
+                })
                 .fixedSize()
             }
 
-            SettingsRow(title: "登录时自动启动") {
+            SettingsRow(title: L.tr("应用外观")) {
+                SettingsMenuPicker(L.tr("应用外观"), selection: appearancePreferenceBinding,
+                    options: AppearancePreference.allCases.map {
+                        SettingsMenuOption(value: $0, title: $0.title)
+                    })
+                    .fixedSize()
+            }
+
+            SettingsRow(title: L.tr("登录时自动启动")) {
                 LaunchAtLoginControl(
                     isOn: launchAtLoginBinding,
                     status: launchAtLoginStatus,
@@ -132,14 +150,14 @@ struct GeneralSettingsScreen: View {
     }
 
     private var notificationGroup: some View {
-        SettingsGroup("通知") {
-            SettingsRow(title: "通知声音") {
+        SettingsGroup(L.tr("通知")) {
+            SettingsRow(title: L.tr("通知声音")) {
                 SoundEffectControl(selection: notificationSoundEffectBinding) {
                     previewSound(settingsStore.settings.notificationSoundEffect)
                 }
             }
 
-            SettingsRow(title: "系统通知") {
+            SettingsRow(title: L.tr("系统通知")) {
                 NotificationPermissionControl(
                     status: notificationPermissionStatus,
                     operation: notificationOperation,
@@ -160,14 +178,14 @@ struct GeneralSettingsScreen: View {
     }
 
     private var menuBarGroup: some View {
-        SettingsGroup("菜单栏") {
-            SettingsRow(title: "菜单栏图标") {
+        SettingsGroup(L.tr("菜单栏")) {
+            SettingsRow(title: L.tr("菜单栏图标")) {
                 MenuBarIconControl(selection: menuBarIconSettingBinding)
             }
 
-            SettingsRow(title: "倒计时显示") {
+            SettingsRow(title: L.tr("倒计时显示")) {
                 menuPicker(
-                    title: "倒计时显示",
+                    title: L.tr("倒计时显示"),
                     selection: menuBarCountdownSettingBinding,
                     values: MenuBarCountdownSetting.allCases
                 )
@@ -176,42 +194,42 @@ struct GeneralSettingsScreen: View {
     }
 
     private var menuBarPopoverGroup: some View {
-        SettingsGroup("菜单栏弹窗") {
-            SettingsRow(title: "弹窗外观") {
+        SettingsGroup(L.tr("菜单栏弹窗")) {
+            SettingsRow(title: L.tr("弹窗外观")) {
                 menuPicker(
-                    title: "弹窗外观",
+                    title: L.tr("弹窗外观"),
                     selection: menuBarPopoverAppearanceBinding,
                     values: MenuBarPopoverAppearance.allCases
                 )
             }
 
-            SettingsRow(title: "主题色") {
+            SettingsRow(title: L.tr("主题色")) {
                 menuPicker(
-                    title: "主题色",
+                    title: L.tr("主题色"),
                     selection: menuBarPopoverThemeColorBinding,
                     values: MenuBarPopoverThemeColor.allCases
                 )
             }
 
-            SettingsRow(title: "进度条") {
+            SettingsRow(title: L.tr("进度条")) {
                 menuPicker(
-                    title: "进度条",
+                    title: L.tr("进度条"),
                     selection: menuBarPopoverProgressStyleBinding,
                     values: MenuBarPopoverProgressStyle.allCases
                 )
             }
 
-            SettingsRow(title: "中心方块") {
+            SettingsRow(title: L.tr("中心方块")) {
                 menuPicker(
-                    title: "中心方块",
+                    title: L.tr("中心方块"),
                     selection: menuBarPopoverSquareStyleBinding,
                     values: MenuBarPopoverSquareStyle.allCases
                 )
             }
 
-            SettingsRow(title: "方块颜色") {
+            SettingsRow(title: L.tr("方块颜色")) {
                 menuPicker(
-                    title: "方块颜色",
+                    title: L.tr("方块颜色"),
                     selection: menuBarPopoverSquareColorModeBinding,
                     values: MenuBarPopoverSquareColorMode.allCases
                 )
@@ -224,13 +242,9 @@ struct GeneralSettingsScreen: View {
         selection: Binding<Value>,
         values: [Value]
     ) -> some View where Value: Identifiable & Hashable, Value: SettingsTitledValue {
-        Picker(title, selection: selection) {
-            ForEach(values) { value in
-                Text(value.title).tag(value)
-            }
-        }
-        .labelsHidden()
-        .pickerStyle(.menu)
+        SettingsMenuPicker(title, selection: selection, options: values.map {
+            SettingsMenuOption(value: $0, title: $0.title)
+        })
         .fixedSize()
     }
 
@@ -336,11 +350,11 @@ struct GeneralSettingsScreen: View {
             launchAtLoginStatus = try launchAtLoginService.setEnabled(isEnabled)
 
             if launchAtLoginStatus == .requiresApproval {
-                launchAtLoginMessage = "需要在系统设置中批准"
+                launchAtLoginMessage = L.tr("需要在系统设置中批准")
             }
         } catch {
             launchAtLoginStatus = launchAtLoginService.status()
-            launchAtLoginMessage = "设置失败"
+            launchAtLoginMessage = L.tr("设置失败")
         }
     }
 
@@ -433,7 +447,7 @@ struct LaunchAtLoginControl: View {
                     .foregroundStyle(status == .requiresApproval ? .orange : .red)
             }
 
-            SettingsSwitch("登录时自动启动", isOn: $isOn)
+            SettingsSwitch(L.tr("登录时自动启动"), isOn: $isOn)
                 .disabled(status == .detecting)
         }
     }
@@ -443,36 +457,14 @@ struct MenuBarIconControl: View {
     @Binding var selection: MenuBarIconSetting
 
     var body: some View {
-        Picker("菜单栏图标", selection: $selection) {
-            Text("不显示").tag(MenuBarIconSetting.hidden)
-            Divider()
-
-            ForEach(MenuBarIcon.allCases) { icon in
-                Label {
-                    Text(icon.title)
-                } icon: {
-                    MenuBarIconPreview(icon: icon)
-                }
-                .tag(MenuBarIconSetting.icon(icon))
+        SettingsMenuPicker(L.tr("菜单栏图标"), selection: $selection, options:
+            [SettingsMenuOption(value: MenuBarIconSetting.hidden, title: L.tr("不显示"))]
+            + MenuBarIcon.allCases.enumerated().map { index, icon in
+                SettingsMenuOption(value: .icon(icon), title: icon.title,
+                    imageName: icon.assetName, separatorBefore: index == 0)
             }
-        }
-        .labelsHidden()
-        .pickerStyle(.menu)
+        )
         .fixedSize()
-    }
-}
-
-private struct MenuBarIconPreview: View {
-    let icon: MenuBarIcon
-
-    var body: some View {
-        Image(icon.assetName)
-            .resizable()
-            .renderingMode(.template)
-            .scaledToFit()
-            .frame(width: 18, height: 18)
-            .imageScale(.small)
-            .foregroundStyle(.primary)
     }
 }
 
@@ -499,31 +491,31 @@ struct NotificationPermissionPresentation: Equatable {
     init(status: NotificationPermissionStatus?) {
         switch status {
         case .authorized:
-            statusText = "已授权"
+            statusText = L.tr("已授权")
             statusSymbol = "checkmark.circle.fill"
             actions = [.testNotification, .refresh]
         case .provisional:
-            statusText = "临时授权"
+            statusText = L.tr("临时授权")
             statusSymbol = "checkmark.circle"
             actions = [.testNotification, .refresh]
         case .alertsDisabled:
-            statusText = "横幅已关闭"
+            statusText = L.tr("横幅已关闭")
             statusSymbol = "exclamationmark.circle.fill"
             actions = [.openSettings, .refresh]
         case .denied:
-            statusText = "未授权"
+            statusText = L.tr("未授权")
             statusSymbol = "exclamationmark.circle.fill"
             actions = [.openSettings, .refresh]
         case .notDetermined:
-            statusText = "未请求"
+            statusText = L.tr("未请求")
             statusSymbol = "questionmark.circle"
             actions = [.requestPermission, .refresh]
         case .unavailable:
-            statusText = "不可用"
+            statusText = L.tr("不可用")
             statusSymbol = "xmark.circle"
             actions = [.refresh]
         case nil:
-            statusText = "检测中…"
+            statusText = L.tr("检测中…")
             statusSymbol = "ellipsis.circle"
             actions = []
         }
@@ -567,7 +559,7 @@ struct NotificationPermissionControl: View {
                     )
 
                     if previewResult == .notDelivered {
-                        Button("打开系统设置…", action: onOpenSettings)
+                        Button(L.tr("打开系统设置…"), action: onOpenSettings)
                             .buttonStyle(.link)
                     }
                 }
@@ -617,24 +609,24 @@ struct NotificationPermissionControl: View {
     private func actionTitle(for action: NotificationPermissionAction) -> String {
         switch action {
         case .refresh:
-            operation == .refreshing ? "检测中…" : "重新检测"
+            operation == .refreshing ? L.tr("检测中…") : L.tr("重新检测")
         case .requestPermission:
-            operation == .requesting ? "请求中…" : "请求权限"
+            operation == .requesting ? L.tr("请求中…") : L.tr("请求权限")
         case .openSettings:
-            "打开系统设置…"
+            L.tr("打开系统设置…")
         case .testNotification:
-            operation == .testing ? "发送中…" : "发送测试通知"
+            operation == .testing ? L.tr("发送中…") : L.tr("发送测试通知")
         }
     }
 
     private func previewMessage(for result: NotificationPreviewResult) -> String {
         switch result {
         case .delivered:
-            "系统已接收测试通知"
+            L.tr("系统已接收测试通知")
         case .notDelivered:
-            "未检测到通知"
+            L.tr("未检测到通知")
         case .failed:
-            "发送失败"
+            L.tr("发送失败")
         }
     }
 

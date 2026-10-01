@@ -3,6 +3,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var settingsStore: SettingsStore
+    @ObservedObject private var localizationRefresh = LocalizationRefresh.shared
     @ObservedObject var updateMonitor: UpdateMonitor
     let notificationService: any NotificationSettingsServicing
     let restSoundService: RestSoundService
@@ -15,6 +16,7 @@ struct SettingsView: View {
     @State private var ruleApplyTask: Task<Void, Never>?
 
     var body: some View {
+        let _ = localizationRefresh.revision
         NavigationSplitView {
             SettingsSidebar(
                 selectedSection: $selectedSection,
@@ -26,10 +28,10 @@ struct SettingsView: View {
             selectedScreen
         }
         .frame(
-            minWidth: 760,
-            idealWidth: 960,
-            minHeight: 560,
-            idealHeight: 680
+            minWidth: SettingsWindowMetrics.minimumSize.width,
+            idealWidth: SettingsWindowMetrics.defaultSize.width,
+            minHeight: SettingsWindowMetrics.minimumSize.height,
+            idealHeight: SettingsWindowMetrics.defaultSize.height
         )
         .onChange(of: settingsStore.settings) { oldSettings, newSettings in
             guard oldSettings.ruleChangeEffect != newSettings.ruleChangeEffect else {
@@ -105,10 +107,12 @@ struct SettingsView: View {
 
 struct SettingsSidebar: View {
     @Binding var selectedSection: SettingsSectionID
+    @ObservedObject private var localizationRefresh = LocalizationRefresh.shared
     let hasAvailableUpdate: Bool
     let onQuit: () -> Void
 
     var body: some View {
+        let _ = localizationRefresh.revision
         VStack(spacing: 0) {
             List(selection: $selectedSection) {
                 ForEach(SettingsSectionID.allCases) { section in
@@ -116,7 +120,7 @@ struct SettingsSidebar: View {
                         Label(section.title, systemImage: section.systemImage)
                         if section == .about && hasAvailableUpdate {
                             Spacer(minLength: 2)
-                            Text("更新")
+                            Text(L.tr("更新"))
                                 .font(.caption2.weight(.semibold))
                                 .foregroundStyle(selectedSection == .about ? .white : .blue)
                                 .padding(.horizontal, 6)
@@ -128,12 +132,12 @@ struct SettingsSidebar: View {
                                 .accessibilityHidden(true)
                         }
                     }
-                    .accessibilityLabel(section == .about && hasAvailableUpdate ? "关于，有新版本可用" : section.title)
+                    .accessibilityLabel(section == .about && hasAvailableUpdate ? L.tr("关于，有新版本可用") : section.title)
                     .tag(section)
                 }
             }
             .listStyle(.sidebar)
-            .accessibilityLabel("设置分类")
+            .accessibilityLabel(L.tr("设置分类"))
 
             HStack {
                 Button(action: onQuit) {
@@ -145,8 +149,8 @@ struct SettingsSidebar: View {
                 .frame(width: 28, height: 28)
                 .foregroundStyle(.secondary)
                 .contentShape(Rectangle())
-                .help("退出")
-                .accessibilityLabel("退出")
+                .help(L.tr("退出"))
+                .accessibilityLabel(L.tr("退出"))
 
                 Spacer()
             }
@@ -166,10 +170,10 @@ enum SettingsSectionID: String, CaseIterable, Identifiable, Hashable {
 
     var title: String {
         switch self {
-        case .general: "通用"
-        case .schedule: "计划"
-        case .restOverlay: "休息界面"
-        case .about: "关于"
+        case .general: L.tr("通用")
+        case .schedule: L.tr("计划")
+        case .restOverlay: L.tr("休息界面")
+        case .about: L.tr("关于")
         }
     }
 

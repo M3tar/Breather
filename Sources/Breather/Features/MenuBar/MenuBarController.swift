@@ -13,6 +13,7 @@ final class MenuBarController: NSObject {
     private var panel: NSPanel?
     private var eventMonitor: Any?
     private var localEventMonitor: Any?
+    private var displayedIcon: MenuBarIconSetting?
     private let panelSize = NSSize(width: 320, height: 430)
 
     init(
@@ -83,9 +84,18 @@ final class MenuBarController: NSObject {
     private func updateStatusItem() {
         guard let button = statusItem.button else { return }
 
-        button.title = scheduler.menuBarTitle
-        button.image = menuBarImage()
-        button.imagePosition = scheduler.menuBarTitle.isEmpty ? .imageOnly : .imageLeading
+        let title = scheduler.menuBarTitle
+        if button.title != title { button.title = title }
+        let icon = MenuBarIconSetting(settings: scheduler.settingsStore.settings)
+        if displayedIcon != icon {
+            button.image = menuBarImage()
+            displayedIcon = icon
+        }
+        button.imagePosition = title.isEmpty ? .imageOnly : .imageLeading
+    }
+
+    func refreshLocalization() {
+        updateStatusItem()
     }
 
     private func showPopover(relativeTo button: NSStatusBarButton) {
@@ -180,11 +190,19 @@ final class MenuBarController: NSObject {
     }
 
     private func closePopover() {
-        panel?.orderOut(nil)
+        if let panel { Self.hideAndReleaseContent(in: panel) }
         eventMonitor.map(NSEvent.removeMonitor)
         eventMonitor = nil
         localEventMonitor.map(NSEvent.removeMonitor)
         localEventMonitor = nil
+    }
+
+    static func hideAndReleaseContent(in panel: NSPanel) {
+        panel.orderOut(nil)
+        // A hidden hosting view keeps TimelineView alive. Each open already creates
+        // fresh content; release both AppKit owners of the graph on close.
+        panel.contentViewController = nil
+        panel.contentView = nil
     }
 
     private func installEventMonitor() {
