@@ -11,6 +11,91 @@ enum SettingsFooterMetrics {
     static let height: CGFloat = 40
 }
 
+struct SettingsWindowInitialFocus: NSViewRepresentable {
+    func makeNSView(context: Context) -> SettingsInitialFocusView {
+        SettingsInitialFocusView()
+    }
+
+    func updateNSView(_ nsView: SettingsInitialFocusView, context: Context) {
+        nsView.focusSidebarIfNeeded()
+    }
+}
+
+/// Keeps fields out of editing until the native settings sidebar is ready to take focus.
+final class SettingsInitialFocusView: NSView {
+    private var needsInitialFocus = true
+    private weak var sidebar: NSTableView?
+
+    override var acceptsFirstResponder: Bool { true }
+    override var canBecomeKeyView: Bool { false }
+
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        NotificationCenter.default.removeObserver(self)
+        if let window,
+           window.initialFirstResponder === self || window.initialFirstResponder === sidebar {
+            window.initialFirstResponder = nil
+        }
+        sidebar = nil
+        super.viewWillMove(toWindow: newWindow)
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard let window else { return }
+        needsInitialFocus = true
+        window.initialFirstResponder = self
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(windowDidBecomeKey),
+            name: NSWindow.didBecomeKeyNotification, object: window
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(windowWillClose),
+            name: NSWindow.willCloseNotification, object: window
+        )
+        if window.isKeyWindow {
+            windowDidBecomeKey()
+        }
+        // SwiftUI may attach this background before creating the List's native table.
+        DispatchQueue.main.async { [weak self] in
+            self?.focusSidebarIfNeeded()
+        }
+    }
+
+    @objc private func windowDidBecomeKey() {
+        focusSidebarIfNeeded()
+    }
+
+    @objc private func windowWillClose() {
+        needsInitialFocus = true
+        focusSidebarIfNeeded()
+    }
+
+    func focusSidebarIfNeeded() {
+        guard needsInitialFocus, let window,
+              let contentView = window.contentView,
+              let sidebar = findSidebar(in: contentView) else { return }
+        self.sidebar = sidebar
+        window.initialFirstResponder = sidebar
+        needsInitialFocus = false
+        if !window.makeFirstResponder(sidebar) {
+            needsInitialFocus = true
+        }
+    }
+
+    private func findSidebar(in view: NSView) -> NSTableView? {
+        // The settings navigation sidebar is the window's only native List.
+        if let table = view as? NSTableView {
+            return table
+        }
+        for subview in view.subviews {
+            if let table = findSidebar(in: subview) {
+                return table
+            }
+        }
+        return nil
+    }
+}
+
 struct SettingsScreenContainer<Content: View>: View {
     @ViewBuilder let content: Content
 
@@ -60,18 +145,39 @@ struct SettingsGroup<Content: View>: View {
     }
 }
 
-struct SettingsRow<Control: View>: View {
+enum SettingsRowRole {
+    case standalone
+    case dependent
+}
+
+private enum SettingsRowMetrics {
+    static let horizontalInset: CGFloat = 14
+    static let verticalInset: CGFloat = 10
+    static let dependentIndent: CGFloat = 20
+    static let dependentTopInset: CGFloat = 4
+    static let guideInset: CGFloat = 18
+    static let guideWidth: CGFloat = 8
+    static let guideHeight: CGFloat = 20
+}
+
+struct SettingsRow<Control: View, Accessory: View>: View {
     let title: String
     let description: String?
+    let role: SettingsRowRole
+    @ViewBuilder let accessory: Accessory
     @ViewBuilder let control: Control
 
     init(
         title: String,
         description: String? = nil,
+        role: SettingsRowRole = .standalone,
+        @ViewBuilder accessory: () -> Accessory,
         @ViewBuilder control: () -> Control
     ) {
         self.title = title
         self.description = description
+        self.role = role
+        self.accessory = accessory()
         self.control = control()
     }
 
@@ -81,15 +187,30 @@ struct SettingsRow<Control: View>: View {
             control
                 .fixedSize(horizontal: true, vertical: false)
         }
-        .padding(.leading, 14)
-        .padding(.trailing, 14)
-        .padding(.vertical, 10)
+        .padding(.leading, SettingsRowMetrics.horizontalInset
+                 + (role == .dependent ? SettingsRowMetrics.dependentIndent : 0))
+        .padding(.trailing, SettingsRowMetrics.horizontalInset)
+        .padding(.top, role == .dependent ? SettingsRowMetrics.dependentTopInset : SettingsRowMetrics.verticalInset)
+        .padding(.bottom, SettingsRowMetrics.verticalInset)
+        .overlay(alignment: .topLeading) {
+            if role == .dependent {
+                SettingsDependencyGuide()
+                    .stroke(Color(nsColor: .separatorColor), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+                    .frame(width: SettingsRowMetrics.guideWidth, height: SettingsRowMetrics.guideHeight)
+                    .offset(x: SettingsRowMetrics.guideInset, y: -8)
+                    .accessibilityHidden(true)
+                    .allowsHitTesting(false)
+            }
+        }
     }
 
     private var label: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(title)
-                .font(.body)
+            HStack(alignment: .firstTextBaseline, spacing: 16) {
+                Text(title)
+                    .font(.body)
+                accessory
+            }
 
             if let description {
                 Text(description)
@@ -98,6 +219,27 @@ struct SettingsRow<Control: View>: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+}
+
+extension SettingsRow where Accessory == EmptyView {
+    init(
+        title: String,
+        description: String? = nil,
+        role: SettingsRowRole = .standalone,
+        @ViewBuilder control: () -> Control
+    ) {
+        self.init(title: title, description: description, role: role, accessory: { EmptyView() }, control: control)
+    }
+}
+
+private struct SettingsDependencyGuide: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        return path
     }
 }
 

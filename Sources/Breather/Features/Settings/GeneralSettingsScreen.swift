@@ -1,82 +1,12 @@
 import AppKit
 import SwiftUI
 
-@MainActor
-protocol NotificationSettingsServicing: AnyObject {
-    func authorizationStatus() async -> NotificationPermissionStatus
-    func requestAuthorization() async -> NotificationPermissionStatus
-    func sendPreviewNotification(
-        playSound: Bool,
-        soundEffect: RestSoundEffect
-    ) async -> NotificationPreviewResult
-}
-
-extension NotificationService: NotificationSettingsServicing {}
-
-enum MenuBarIconSetting: Hashable {
-    case hidden
-    case icon(MenuBarIcon)
-
-    init(settings: AppSettings) {
-        self = settings.showMenuBarIcon ? .icon(settings.menuBarIcon) : .hidden
-    }
-
-    func apply(to settings: inout AppSettings) {
-        switch self {
-        case .hidden:
-            settings.showMenuBarIcon = false
-        case let .icon(icon):
-            settings.showMenuBarIcon = true
-            settings.menuBarIcon = icon
-        }
-    }
-}
-
-enum MenuBarCountdownSetting: String, CaseIterable, Identifiable {
-    case hidden
-    case minutes
-    case minutesAndSeconds
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .hidden: L.tr("不显示")
-        case .minutes: L.tr("分钟")
-        case .minutesAndSeconds: L.tr("分钟和秒")
-        }
-    }
-
-    init(settings: AppSettings) {
-        if !settings.showCountdownInMenuBar {
-            self = .hidden
-        } else if settings.showSeconds {
-            self = .minutesAndSeconds
-        } else {
-            self = .minutes
-        }
-    }
-
-    func apply(to settings: inout AppSettings) {
-        switch self {
-        case .hidden:
-            settings.showCountdownInMenuBar = false
-            settings.showSeconds = false
-        case .minutes:
-            settings.showCountdownInMenuBar = true
-            settings.showSeconds = false
-        case .minutesAndSeconds:
-            settings.showCountdownInMenuBar = true
-            settings.showSeconds = true
-        }
-    }
-}
-
 struct GeneralSettingsScreen: View {
     @ObservedObject var settingsStore: SettingsStore
     @State private var languageCode = AppLanguage.selected.rawValue
     let notificationService: any NotificationSettingsServicing
     let restSoundService: RestSoundService
+    var focusNotifications = false
 
     private let launchAtLoginService = LaunchAtLoginService()
 
@@ -88,15 +18,20 @@ struct GeneralSettingsScreen: View {
     @State private var notificationOperation: NotificationPermissionOperation?
 
     var body: some View {
-        SettingsScreenContainer {
-            applicationGroup
-            notificationGroup
-            menuBarGroup
-            menuBarPopoverGroup
-        }
-        .task {
-            refreshLaunchAtLoginStatus()
-            await refreshNotificationPermissionStatus()
+        ScrollViewReader { proxy in
+            SettingsScreenContainer {
+                applicationGroup
+                notificationGroup
+                    .id("notifications")
+            }
+            .task {
+                if focusNotifications {
+                    await Task.yield()
+                    proxy.scrollTo("notifications", anchor: .top)
+                }
+                refreshLaunchAtLoginStatus()
+                await refreshNotificationPermissionStatus()
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             refreshLaunchAtLoginStatus()
@@ -165,10 +100,9 @@ struct GeneralSettingsScreen: View {
                     onRefresh: {
                         Task { await refreshNotificationPermissionStatus() }
                     },
-                    onRequestPermission: {
-                        Task { await requestNotificationPermission() }
+                    onOpenSettings: {
+                        Task { await openNotificationSettings() }
                     },
-                    onOpenSettings: openNotificationSettings,
                     onTestNotification: {
                         Task { await testNotification() }
                     }
@@ -177,138 +111,10 @@ struct GeneralSettingsScreen: View {
         }
     }
 
-    private var menuBarGroup: some View {
-        SettingsGroup(L.tr("菜单栏")) {
-            SettingsRow(title: L.tr("菜单栏图标")) {
-                MenuBarIconControl(selection: menuBarIconSettingBinding)
-            }
-
-            SettingsRow(title: L.tr("倒计时显示")) {
-                menuPicker(
-                    title: L.tr("倒计时显示"),
-                    selection: menuBarCountdownSettingBinding,
-                    values: MenuBarCountdownSetting.allCases
-                )
-            }
-        }
-    }
-
-    private var menuBarPopoverGroup: some View {
-        SettingsGroup(L.tr("菜单栏弹窗")) {
-            SettingsRow(title: L.tr("弹窗外观")) {
-                menuPicker(
-                    title: L.tr("弹窗外观"),
-                    selection: menuBarPopoverAppearanceBinding,
-                    values: MenuBarPopoverAppearance.allCases
-                )
-            }
-
-            SettingsRow(title: L.tr("主题色")) {
-                menuPicker(
-                    title: L.tr("主题色"),
-                    selection: menuBarPopoverThemeColorBinding,
-                    values: MenuBarPopoverThemeColor.allCases
-                )
-            }
-
-            SettingsRow(title: L.tr("进度条")) {
-                menuPicker(
-                    title: L.tr("进度条"),
-                    selection: menuBarPopoverProgressStyleBinding,
-                    values: MenuBarPopoverProgressStyle.allCases
-                )
-            }
-
-            SettingsRow(title: L.tr("中心方块")) {
-                menuPicker(
-                    title: L.tr("中心方块"),
-                    selection: menuBarPopoverSquareStyleBinding,
-                    values: MenuBarPopoverSquareStyle.allCases
-                )
-            }
-
-            SettingsRow(title: L.tr("方块颜色")) {
-                menuPicker(
-                    title: L.tr("方块颜色"),
-                    selection: menuBarPopoverSquareColorModeBinding,
-                    values: MenuBarPopoverSquareColorMode.allCases
-                )
-            }
-        }
-    }
-
-    private func menuPicker<Value>(
-        title: String,
-        selection: Binding<Value>,
-        values: [Value]
-    ) -> some View where Value: Identifiable & Hashable, Value: SettingsTitledValue {
-        SettingsMenuPicker(title, selection: selection, options: values.map {
-            SettingsMenuOption(value: $0, title: $0.title)
-        })
-        .fixedSize()
-    }
-
     private var appearancePreferenceBinding: Binding<AppearancePreference> {
         Binding(
             get: { settingsStore.settings.appearancePreference },
             set: { settingsStore.settings.appearancePreference = $0 }
-        )
-    }
-
-    private var menuBarIconSettingBinding: Binding<MenuBarIconSetting> {
-        Binding(
-            get: { MenuBarIconSetting(settings: settingsStore.settings) },
-            set: { selection in
-                var settings = settingsStore.settings
-                selection.apply(to: &settings)
-                settingsStore.settings = settings
-            }
-        )
-    }
-
-    private var menuBarCountdownSettingBinding: Binding<MenuBarCountdownSetting> {
-        Binding(
-            get: { MenuBarCountdownSetting(settings: settingsStore.settings) },
-            set: { selection in
-                var settings = settingsStore.settings
-                selection.apply(to: &settings)
-                settingsStore.settings = settings
-            }
-        )
-    }
-
-    private var menuBarPopoverThemeColorBinding: Binding<MenuBarPopoverThemeColor> {
-        Binding(
-            get: { settingsStore.settings.menuBarPopoverThemeColor },
-            set: { settingsStore.settings.menuBarPopoverThemeColor = $0 }
-        )
-    }
-
-    private var menuBarPopoverAppearanceBinding: Binding<MenuBarPopoverAppearance> {
-        Binding(
-            get: { settingsStore.settings.menuBarPopoverAppearance },
-            set: { settingsStore.settings.menuBarPopoverAppearance = $0 }
-        )
-    }
-
-    private var menuBarPopoverProgressStyleBinding: Binding<MenuBarPopoverProgressStyle> {
-        Binding(
-            get: { settingsStore.settings.menuBarPopoverProgressStyle },
-            set: { settingsStore.settings.menuBarPopoverProgressStyle = $0 }
-        )
-    }
-
-    private var menuBarPopoverSquareStyleBinding: Binding<MenuBarPopoverSquareStyle> {
-        Binding(
-            get: { settingsStore.settings.menuBarPopoverSquareStyle },
-            set: { settingsStore.settings.menuBarPopoverSquareStyle = $0 }
-        )
-    }
-
-    private var menuBarPopoverSquareColorModeBinding: Binding<MenuBarPopoverSquareColorMode> {
-        Binding(
-            get: { settingsStore.settings.menuBarPopoverSquareColorMode },
-            set: { settingsStore.settings.menuBarPopoverSquareColorMode = $0 }
         )
     }
 
@@ -367,15 +173,6 @@ struct GeneralSettingsScreen: View {
         notificationPermissionStatus = await notificationService.authorizationStatus()
     }
 
-    private func requestNotificationPermission() async {
-        guard notificationOperation == nil else { return }
-        notificationOperation = .requesting
-        setNotificationPreviewResult(nil)
-        defer { notificationOperation = nil }
-
-        notificationPermissionStatus = await notificationService.requestAuthorization()
-    }
-
     private func testNotification() async {
         guard notificationOperation == nil else { return }
         notificationOperation = .testing
@@ -408,12 +205,17 @@ struct GeneralSettingsScreen: View {
         }
     }
 
-    private func openNotificationSettings() {
+    private func openNotificationSettings() async {
+        guard notificationOperation == nil else { return }
         guard let url = URL(
             string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension"
         ) else {
             return
         }
+        notificationOperation = .openingSettings
+        setNotificationPreviewResult(nil)
+        defer { notificationOperation = nil }
+        notificationPermissionStatus = await notificationService.prepareToOpenSettings()
         NSWorkspace.shared.open(url)
     }
 
@@ -422,17 +224,6 @@ struct GeneralSettingsScreen: View {
         restSoundService.play(effect)
     }
 }
-
-private protocol SettingsTitledValue {
-    var title: String { get }
-}
-
-extension MenuBarPopoverAppearance: SettingsTitledValue {}
-extension MenuBarPopoverThemeColor: SettingsTitledValue {}
-extension MenuBarPopoverProgressStyle: SettingsTitledValue {}
-extension MenuBarPopoverSquareStyle: SettingsTitledValue {}
-extension MenuBarPopoverSquareColorMode: SettingsTitledValue {}
-extension MenuBarCountdownSetting: SettingsTitledValue {}
 
 struct LaunchAtLoginControl: View {
     @Binding var isOn: Bool
@@ -453,30 +244,14 @@ struct LaunchAtLoginControl: View {
     }
 }
 
-struct MenuBarIconControl: View {
-    @Binding var selection: MenuBarIconSetting
-
-    var body: some View {
-        SettingsMenuPicker(L.tr("菜单栏图标"), selection: $selection, options:
-            [SettingsMenuOption(value: MenuBarIconSetting.hidden, title: L.tr("不显示"))]
-            + MenuBarIcon.allCases.enumerated().map { index, icon in
-                SettingsMenuOption(value: .icon(icon), title: icon.title,
-                    imageName: icon.assetName, separatorBefore: index == 0)
-            }
-        )
-        .fixedSize()
-    }
-}
-
 enum NotificationPermissionOperation: Equatable {
     case refreshing
-    case requesting
+    case openingSettings
     case testing
 }
 
 enum NotificationPermissionAction: String, Identifiable, Equatable {
     case refresh
-    case requestPermission
     case openSettings
     case testNotification
 
@@ -489,33 +264,24 @@ struct NotificationPermissionPresentation: Equatable {
     let actions: [NotificationPermissionAction]
 
     init(status: NotificationPermissionStatus?) {
+        statusText = status?.title ?? L.tr("检测中…")
         switch status {
         case .authorized:
-            statusText = L.tr("已授权")
             statusSymbol = "checkmark.circle.fill"
             actions = [.testNotification, .refresh]
         case .provisional:
-            statusText = L.tr("临时授权")
             statusSymbol = "checkmark.circle"
             actions = [.testNotification, .refresh]
         case .alertsDisabled:
-            statusText = L.tr("横幅已关闭")
             statusSymbol = "exclamationmark.circle.fill"
             actions = [.openSettings, .refresh]
-        case .denied:
-            statusText = L.tr("未授权")
+        case .denied, .notDetermined:
             statusSymbol = "exclamationmark.circle.fill"
             actions = [.openSettings, .refresh]
-        case .notDetermined:
-            statusText = L.tr("未请求")
-            statusSymbol = "questionmark.circle"
-            actions = [.requestPermission, .refresh]
         case .unavailable:
-            statusText = L.tr("不可用")
             statusSymbol = "xmark.circle"
             actions = [.refresh]
         case nil:
-            statusText = L.tr("检测中…")
             statusSymbol = "ellipsis.circle"
             actions = []
         }
@@ -527,7 +293,6 @@ struct NotificationPermissionControl: View {
     let operation: NotificationPermissionOperation?
     let previewResult: NotificationPreviewResult?
     let onRefresh: () -> Void
-    let onRequestPermission: () -> Void
     let onOpenSettings: () -> Void
     let onTestNotification: () -> Void
 
@@ -599,9 +364,9 @@ struct NotificationPermissionControl: View {
         switch status {
         case .authorized, .provisional:
             .green
-        case .alertsDisabled, .denied, .unavailable:
-            .red
-        case .notDetermined, nil:
+        case .alertsDisabled, .denied, .notDetermined, .unavailable:
+            .orange
+        case nil:
             .secondary
         }
     }
@@ -610,8 +375,6 @@ struct NotificationPermissionControl: View {
         switch action {
         case .refresh:
             operation == .refreshing ? L.tr("检测中…") : L.tr("重新检测")
-        case .requestPermission:
-            operation == .requesting ? L.tr("请求中…") : L.tr("请求权限")
         case .openSettings:
             L.tr("打开系统设置…")
         case .testNotification:
@@ -634,8 +397,6 @@ struct NotificationPermissionControl: View {
         switch action {
         case .refresh:
             onRefresh()
-        case .requestPermission:
-            onRequestPermission()
         case .openSettings:
             onOpenSettings()
         case .testNotification:

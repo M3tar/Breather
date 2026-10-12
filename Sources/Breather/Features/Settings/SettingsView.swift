@@ -11,9 +11,10 @@ struct SettingsView: View {
     let onApplyRulesToCurrentCycle: () -> Void
     let onPreviewRestOverlay: () -> Void
 
-    @State private var selectedSection: SettingsSectionID = .general
+    @State private var selectedSection: SettingsSectionID = .schedule
     @State private var isWaitingToApplyRules = false
     @State private var ruleApplyTask: Task<Void, Never>?
+    @State private var focusGeneralNotifications = false
 
     var body: some View {
         let _ = localizationRefresh.revision
@@ -33,6 +34,11 @@ struct SettingsView: View {
             minHeight: SettingsWindowMetrics.minimumSize.height,
             idealHeight: SettingsWindowMetrics.defaultSize.height
         )
+        .background {
+            SettingsWindowInitialFocus()
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
+        }
         .onChange(of: settingsStore.settings) { oldSettings, newSettings in
             guard oldSettings.ruleChangeEffect != newSettings.ruleChangeEffect else {
                 return
@@ -53,6 +59,11 @@ struct SettingsView: View {
         .onDisappear {
             cancelScheduledRuleApply()
         }
+        .onChange(of: selectedSection) { _, section in
+            if section != .general {
+                focusGeneralNotifications = false
+            }
+        }
     }
 
     @ViewBuilder
@@ -62,14 +73,22 @@ struct SettingsView: View {
             GeneralSettingsScreen(
                 settingsStore: settingsStore,
                 notificationService: notificationService,
-                restSoundService: restSoundService
+                restSoundService: restSoundService,
+                focusNotifications: focusGeneralNotifications
             )
         case .schedule:
             ScheduleSettingsScreen(
                 settingsStore: settingsStore,
                 isWaitingToApplyRules: isWaitingToApplyRules,
-                onApplyRulesToCurrentCycle: applyRulesToCurrentCycle
+                onApplyRulesToCurrentCycle: applyRulesToCurrentCycle,
+                notificationService: notificationService,
+                onOpenNotificationSettings: {
+                    focusGeneralNotifications = true
+                    selectedSection = .general
+                }
             )
+        case .menuBar:
+            MenuBarSettingsScreen(settingsStore: settingsStore)
         case .restOverlay:
             RestOverlaySettingsScreen(
                 settingsStore: settingsStore,
@@ -161,9 +180,10 @@ struct SettingsSidebar: View {
 }
 
 enum SettingsSectionID: String, CaseIterable, Identifiable, Hashable {
-    case general
     case schedule
+    case menuBar
     case restOverlay
+    case general
     case about
 
     var id: String { rawValue }
@@ -172,6 +192,7 @@ enum SettingsSectionID: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .general: L.tr("通用")
         case .schedule: L.tr("计划")
+        case .menuBar: L.tr("菜单栏")
         case .restOverlay: L.tr("休息界面")
         case .about: L.tr("关于")
         }
@@ -181,6 +202,7 @@ enum SettingsSectionID: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .general: "gearshape"
         case .schedule: "timer"
+        case .menuBar: "menubar.rectangle"
         case .restOverlay: "rectangle.inset.filled"
         case .about: "info.circle"
         }

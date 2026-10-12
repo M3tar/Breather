@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarController: MenuBarController!
     private var restOverlayController: RestOverlayWindowController!
     private let displayMirroringMonitor = DisplayMirroringMonitor()
+    private let computerActivityMonitor = ComputerActivityMonitor()
     private var cancellables: Set<AnyCancellable> = []
 
     let settingsStore = SettingsStore()
@@ -78,6 +79,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             scheduler?.setDisplayMirroringActive(isMirroring)
         }
 
+        computerActivityMonitor.onStateChanged = { [weak self] activity in
+            guard let self else { return }
+            self.scheduler.setComputerActivity(activity)
+            if activity.isUnavailable {
+                self.restSoundService.stop()
+            } else {
+                self.displayMirroringMonitor.refresh()
+            }
+        }
+
         settingsStore.$settings
             .map(\.appearancePreference)
             .removeDuplicates()
@@ -91,6 +102,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .removeDuplicates()
             .sink { [weak self] isEnabled in
                 self?.configureDisplayMirroringMonitoring(isEnabled: isEnabled)
+            }
+            .store(in: &cancellables)
+
+        settingsStore.$settings
+            .map(\.automaticRestMode)
+            .removeDuplicates()
+            .dropFirst()
+            .sink { [weak self] _ in
+                // @Published sends before the store has installed the new value.
+                Task { @MainActor [weak self] in self?.scheduler.automaticRestSettingsDidChange() }
             }
             .store(in: &cancellables)
 
@@ -120,10 +141,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        Task {
-            _ = await notificationService.requestAuthorization()
+        if settingsStore.rules.preBreakNotificationEnabled {
+            Task {
+                _ = await notificationService.requestAuthorization()
+            }
         }
         scheduler.restorePauseResumeSessionIfNeeded()
+        computerActivityMonitor.start()
         scheduler.start()
         updateMonitor.startAutomaticChecks()
     }
@@ -131,6 +155,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         updateMonitor.stopAutomaticChecks()
         displayMirroringMonitor.stop()
+        computerActivityMonitor.stop()
         restOverlayController?.shutdown()
     }
 

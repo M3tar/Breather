@@ -583,7 +583,7 @@ struct AppSettings: Codable, Equatable {
     var recoveryNudgeThreshold: Int = 2
     var strictMode: Bool = false
     var autoPauseDuringDisplayMirroring: Bool = true
-    var resetAfterWakeOrUnlock: Bool = false
+    var automaticRestMode: AutomaticRestMode = .lockOrSleep
     var restOverlayPrompt: RestOverlayPrompt = .lookFar
     var restOverlayContentMode: RestOverlayContentMode = .classic
     var curtainPalette: CurtainPalette = .smokedJade
@@ -596,7 +596,7 @@ struct AppSettings: Codable, Equatable {
     var playRestEndSound: Bool = true
     var restStartSoundEffect: RestSoundEffect = .stardewNewRecord
     var restEndSoundEffect: RestSoundEffect = .stardewHorseFlute
-    var idleThreshold: TimeInterval = 5 * 60
+    var automaticRestThreshold: TimeInterval = 5 * 60
 
     init() {}
 
@@ -630,7 +630,9 @@ struct AppSettings: Codable, Equatable {
         } else {
             autoPauseDuringDisplayMirroring = storedAutoPause ?? true
         }
-        resetAfterWakeOrUnlock = try container.decodeIfPresent(Bool.self, forKey: .resetAfterWakeOrUnlock) ?? false
+        let legacyIdleThreshold = try legacyContainer.decodeIfPresent(TimeInterval.self, forKey: .idleThreshold)
+        automaticRestMode = try container.decodeIfPresent(AutomaticRestMode.self, forKey: .automaticRestMode)
+            ?? (legacyIdleThreshold == nil ? .lockOrSleep : .lockSleepOrIdle)
         restOverlayPrompt = try container.decodeIfPresent(RestOverlayPrompt.self, forKey: .restOverlayPrompt) ?? .lookFar
         let storedRestOverlayContentMode = try container.decodeIfPresent(String.self, forKey: .restOverlayContentMode)
         let migratesSheerLinen = storedRestOverlayContentMode == "sheerLinen"
@@ -649,11 +651,13 @@ struct AppSettings: Codable, Equatable {
         playRestEndSound = try container.decodeIfPresent(Bool.self, forKey: .playRestEndSound) ?? true
         restStartSoundEffect = try container.decodeIfPresent(RestSoundEffect.self, forKey: .restStartSoundEffect) ?? (playRestStartSound ? .stardewNewRecord : .none)
         restEndSoundEffect = try container.decodeIfPresent(RestSoundEffect.self, forKey: .restEndSoundEffect) ?? (playRestEndSound ? .stardewHorseFlute : .none)
-        idleThreshold = try container.decodeIfPresent(TimeInterval.self, forKey: .idleThreshold) ?? 5 * 60
+        automaticRestThreshold = try container.decodeIfPresent(TimeInterval.self, forKey: .automaticRestThreshold)
+            ?? legacyIdleThreshold ?? 5 * 60
     }
 
     private enum LegacyCodingKeys: String, CodingKey {
         case pauseDuringScreenSharing
         case screenSharingPauseEnabled
+        case idleThreshold
     }
 }

@@ -1,6 +1,25 @@
 import Foundation
 import UserNotifications
 
+@MainActor
+protocol NotificationSettingsServicing: AnyObject {
+    func authorizationStatus() async -> NotificationPermissionStatus
+    func requestAuthorization() async -> NotificationPermissionStatus
+    func sendPreviewNotification(
+        playSound: Bool,
+        soundEffect: RestSoundEffect
+    ) async -> NotificationPreviewResult
+}
+
+extension NotificationSettingsServicing {
+    // Complete first-time registration before opening the system settings page.
+    // Checking again here handles permission changes since this view last refreshed.
+    func prepareToOpenSettings() async -> NotificationPermissionStatus {
+        let status = await authorizationStatus()
+        return status == .notDetermined ? await requestAuthorization() : status
+    }
+}
+
 enum NotificationPermissionStatus: Equatable {
     case authorized
     case provisional
@@ -9,14 +28,43 @@ enum NotificationPermissionStatus: Equatable {
     case notDetermined
     case unavailable
 
+    static func resolve(
+        authorization: UNAuthorizationStatus,
+        alertSetting: UNNotificationSetting,
+        alertStyle: UNAlertStyle
+    ) -> Self {
+        let desktopAlertsDisabled = alertSetting == .disabled || alertStyle == .none
+        switch authorization {
+        case .authorized:
+            return desktopAlertsDisabled ? .alertsDisabled : .authorized
+        case .provisional, .ephemeral:
+            return desktopAlertsDisabled ? .alertsDisabled : .provisional
+        case .denied:
+            return .denied
+        case .notDetermined:
+            return .notDetermined
+        @unknown default:
+            return .unavailable
+        }
+    }
+
     var title: String {
         switch self {
         case .authorized: L.tr("已授权")
         case .provisional: L.tr("临时授权")
-        case .alertsDisabled: L.tr("横幅已关闭")
-        case .denied: L.tr("未授权")
-        case .notDetermined: L.tr("未请求")
+        case .alertsDisabled: L.tr("桌面提醒已关闭")
+        case .denied, .notDetermined: L.tr("未授权")
         case .unavailable: L.tr("不可用")
+        }
+    }
+
+    var settingsLinkTitle: String {
+        switch self {
+        case .authorized: L.tr("系统通知已授权")
+        case .provisional: L.tr("系统通知临时授权")
+        case .alertsDisabled: L.tr("桌面提醒已关闭")
+        case .denied, .notDetermined: L.tr("系统通知未授权")
+        case .unavailable: L.tr("系统通知不可用")
         }
     }
 
@@ -69,7 +117,7 @@ struct NotificationDeliveryVerifier {
 }
 
 @MainActor
-final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
+final class NotificationService: NSObject, UNUserNotificationCenterDelegate, NotificationSettingsServicing {
     override init() {
         super.init()
         UNUserNotificationCenter.current().delegate = self
@@ -95,20 +143,9 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         guard canUseUserNotifications else { return .unavailable }
 
         let settings = await UNUserNotificationCenter.current().notificationSettings()
-        switch settings.authorizationStatus {
-        case .authorized:
-            return settings.alertSetting == .disabled ? .alertsDisabled : .authorized
-        case .provisional:
-            return settings.alertSetting == .disabled ? .alertsDisabled : .provisional
-        case .denied:
-            return .denied
-        case .notDetermined:
-            return .notDetermined
-        case .ephemeral:
-            return .provisional
-        @unknown default:
-            return .unavailable
-        }
+        return .resolve(authorization: settings.authorizationStatus,
+                        alertSetting: settings.alertSetting,
+                        alertStyle: settings.alertStyle)
     }
 
     func sendPreBreakNotification(playSound: Bool, soundEffect: RestSoundEffect) {

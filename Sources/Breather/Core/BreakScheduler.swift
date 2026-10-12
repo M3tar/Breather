@@ -12,6 +12,7 @@ enum BreakState: Equatable {
 enum PauseReason: Hashable {
     case user
     case displayMirroring
+    case computerUnavailable
 }
 
 @MainActor
@@ -23,6 +24,7 @@ final class BreakScheduler: ObservableObject {
     @Published private(set) var pauseReasons: Set<PauseReason> = []
     @Published private(set) var pauseResumeSession: PauseResumeSession?
     @Published private(set) var pauseResumeRemainingSeconds: Int?
+    @Published private(set) var computerActivity = ComputerActivityState()
 
     let settingsStore: SettingsStore
 
@@ -40,6 +42,7 @@ final class BreakScheduler: ObservableObject {
     private var notificationSent = false
     private var previousStateBeforePause: BreakState = .working
     private var restCountdownStartsAt: Date?
+    private var automaticRestStartedAt: Date?
 
     init(
         settingsStore: SettingsStore,
@@ -73,6 +76,16 @@ final class BreakScheduler: ObservableObject {
         pauseReasons.contains(.displayMirroring)
     }
 
+    var isComputerUnavailable: Bool {
+        pauseReasons.contains(.computerUnavailable)
+    }
+
+    private var computerPauseTitle: String {
+        if computerActivity.isSleeping { return L.tr("电脑睡眠中") }
+        if computerActivity.isLocked { return L.tr("已锁屏") }
+        return L.tr("用户会话未激活")
+    }
+
     var shouldShowRecoveryNudge: Bool {
         consecutiveMissedBreaks >= settingsStore.settings.recoveryNudgeThreshold
     }
@@ -89,6 +102,8 @@ final class BreakScheduler: ObservableObject {
             }
             return L.tr("已暂停")
         }
+
+        if isComputerUnavailable { return computerPauseTitle }
 
         guard settingsStore.settings.showCountdownInMenuBar else { return "Breather" }
         if settingsStore.settings.showSeconds {
@@ -114,6 +129,7 @@ final class BreakScheduler: ObservableObject {
         if isUserPauseActive {
             return L.tr("已暂停 · 直到手动继续")
         }
+        if isComputerUnavailable { return computerPauseTitle }
         return nil
     }
 
@@ -124,6 +140,7 @@ final class BreakScheduler: ObservableObject {
         if isUserPauseActive {
             return L.tr("Breather 已暂停")
         }
+        if isComputerUnavailable { return computerPauseTitle }
         return nil
     }
 
@@ -136,6 +153,11 @@ final class BreakScheduler: ObservableObject {
         }
         if isUserPauseActive {
             return L.tr("不会提醒休息，直到你手动继续")
+        }
+        if isComputerUnavailable {
+            return settingsStore.settings.automaticRestMode.isEnabled
+                ? L.tr("返回后根据离开时长继续或重新计时")
+                : L.tr("返回后继续原来的计时")
         }
         return nil
     }
@@ -220,8 +242,46 @@ final class BreakScheduler: ObservableObject {
         setDisplayMirroringActive(false)
     }
 
+    func setComputerActivity(_ activity: ComputerActivityState) {
+        guard activity != computerActivity else { return }
+        let previous = computerActivity
+        let currentDate = now()
+        computerActivity = activity
+
+        if !previous.canCountAsRest, activity.canCountAsRest {
+            automaticRestStartedAt = currentDate
+        }
+
+        if !previous.isUnavailable, activity.isUnavailable {
+            addPauseReason(.computerUnavailable)
+        }
+
+        if previous.canCountAsRest, !activity.canCountAsRest {
+            if let startedAt = automaticRestStartedAt,
+               settingsStore.settings.automaticRestMode.isEnabled,
+               currentDate.timeIntervalSince(startedAt) >= settingsStore.settings.automaticRestThreshold {
+                consecutiveMissedBreaks = 0
+                prepareFreshWorkCycleAfterProtectedPause()
+            }
+            automaticRestStartedAt = nil
+        }
+
+        if previous.isUnavailable, !activity.isUnavailable {
+            _ = refreshPauseResumeSession()
+            pauseReasons.remove(.computerUnavailable)
+            restoreStateAfterOrdinaryPauseIfPossible()
+        }
+        updateStatusText()
+    }
+
+    func automaticRestSettingsDidChange() {
+        if state == .idleRested, !settingsStore.settings.automaticRestMode.includesIdle {
+            resetWorkCycle()
+        }
+    }
+
     func togglePause() {
-        guard !isDisplayMirroringPauseActive else { return }
+        guard !isDisplayMirroringPauseActive, !isComputerUnavailable else { return }
 
         if isUserPauseActive {
             continueUserPause()
@@ -241,8 +301,9 @@ final class BreakScheduler: ObservableObject {
         pauseResumeRemainingSeconds = nil
         pauseResumeSessionStore.clear()
 
-        if isDisplayMirroringPauseActive {
+        if isDisplayMirroringPauseActive || isComputerUnavailable {
             pauseReasons.remove(.user)
+            state = .paused
             remainingSeconds = Int(settingsStore.currentCycleRules.workDuration)
             previousStateBeforePause = .working
             notificationSent = false
@@ -267,7 +328,7 @@ final class BreakScheduler: ObservableObject {
         settingsStore.activateSavedRulesForCurrentCycle()
         notificationSent = false
 
-        if isDisplayMirroringPauseActive {
+        if isDisplayMirroringPauseActive || isComputerUnavailable {
             previousStateBeforePause = .working
             remainingSeconds = Int(settingsStore.currentCycleRules.workDuration)
             onRestEnded?()
@@ -301,7 +362,7 @@ final class BreakScheduler: ObservableObject {
     }
 
     func startRestNow() {
-        guard !isDisplayMirroringPauseActive else { return }
+        guard !isDisplayMirroringPauseActive, !isComputerUnavailable else { return }
         pauseReasons.remove(.user)
         pauseResumeSession = nil
         pauseResumeRemainingSeconds = nil
@@ -343,7 +404,8 @@ final class BreakScheduler: ObservableObject {
             return
         }
 
-        if idleMonitor.idleSeconds >= settingsStore.settings.idleThreshold,
+        if settingsStore.settings.automaticRestMode.includesIdle,
+           idleMonitor.idleSeconds >= settingsStore.settings.automaticRestThreshold,
            state == .working || state == .notifying || state == .snoozing {
             state = .idleRested
             remainingSeconds = Int(settingsStore.currentCycleRules.workDuration)
@@ -365,6 +427,8 @@ final class BreakScheduler: ObservableObject {
         remainingSeconds = max(0, remainingSeconds - 1)
 
         if state == .working,
+           settingsStore.currentCycleRules.preBreakNotificationEnabled,
+           settingsStore.currentCycleRules.preBreakNotificationOffset > 0,
            !notificationSent,
            remainingSeconds <= Int(settingsStore.currentCycleRules.preBreakNotificationOffset) {
             state = .notifying
@@ -420,6 +484,7 @@ final class BreakScheduler: ObservableObject {
     }
 
     private func prepareFreshWorkCycleAfterProtectedPause() {
+        restCountdownStartsAt = nil
         settingsStore.activateSavedRulesForCurrentCycle()
         remainingSeconds = Int(settingsStore.currentCycleRules.workDuration)
         notificationSent = false

@@ -44,12 +44,12 @@ final class SettingsStore: ObservableObject {
 
     var preBreakNotificationSeconds: Int {
         get { Int(rules.preBreakNotificationOffset) }
-        set { rules.preBreakNotificationOffset = TimeInterval(newValue) }
+        set { rules.preBreakNotificationOffset = TimeInterval(min(120, max(1, newValue))) }
     }
 
-    var idleMinutes: Int {
-        get { Int(settings.idleThreshold / 60) }
-        set { settings.idleThreshold = TimeInterval(newValue * 60) }
+    var automaticRestMinutes: Int {
+        get { Int(settings.automaticRestThreshold / 60) }
+        set { settings.automaticRestThreshold = TimeInterval(newValue * 60) }
     }
 
     var snoozeMinutes: Int {

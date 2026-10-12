@@ -13,8 +13,22 @@ const iconPath = path.join(
   repositoryRoot,
   "Sources/Breather/Resources/Assets.xcassets/AppIcon.appiconset/icon_512x512.png",
 );
-const focusPath = path.join(repositoryRoot, "screenshots/timer-popover-running-jade.jpg");
-const mirroringPath = path.join(repositoryRoot, "screenshots/timer-popover-mirroring-dark.jpg");
+const variants = [
+  {
+    language: "en",
+    layout: "hero-hybrid-layout.svg",
+    output: "hero-hybrid.png",
+    focus: "screenshots/timer-popover-running-jade.en.png",
+    mirroring: "screenshots/timer-popover-mirroring-light.en.png",
+  },
+  {
+    language: "zh-CN",
+    layout: "hero-hybrid-layout-zh-cn.svg",
+    output: "hero-hybrid-zh-cn.png",
+    focus: "screenshots/timer-popover-running-jade.jpg",
+    mirroring: "screenshots/timer-popover-mirroring-dark.jpg",
+  },
+];
 
 const roundedMask = (width, height, radius) => Buffer.from(
   `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><rect width="${width}" height="${height}" rx="${radius}" fill="#fff"/></svg>`,
@@ -32,7 +46,7 @@ async function roundedImage(input, width, radius) {
     .toBuffer();
 }
 
-async function render(layoutName, outputName) {
+async function render({ layout: layoutName, output: outputName, focus: focusImage, mirroring: mirroringImage }) {
   const background = await sharp(backgroundPath)
     .extract({ left: 100, top: 180, width: 1440, height: 648 })
     .resize(1200, 540)
@@ -40,8 +54,8 @@ async function render(layoutName, outputName) {
     .toBuffer();
   const layout = await sharp(path.join(sourceRoot, layoutName)).png().toBuffer();
   const icon = await roundedImage(iconPath, 70, 18);
-  const focus = await roundedImage(focusPath, 280, 24);
-  const mirroring = await roundedImage(mirroringPath, 205, 22);
+  const focus = await roundedImage(path.join(repositoryRoot, focusImage), 280, 24);
+  const mirroring = await roundedImage(path.join(repositoryRoot, mirroringImage), 205, 22);
 
   const composition = await sharp({
     create: {
@@ -67,9 +81,17 @@ async function render(layoutName, outputName) {
     .toFile(path.join(outputRoot, outputName));
 }
 
-Promise.all([
-  render("hero-hybrid-layout.svg", "hero-hybrid.png"),
-  render("hero-hybrid-layout-zh-cn.svg", "hero-hybrid-zh-cn.png"),
-]).then(() => {
-  console.log("Rendered English and Simplified Chinese hybrid heroes.");
-});
+const language = process.argv[2] || "all";
+const selectedVariants = variants.filter((variant) => language === "all" || variant.language === language);
+if (selectedVariants.length === 0) {
+  throw new Error("Usage: node render-hybrid-hero.cjs [en|zh-CN|all]");
+}
+
+Promise.all(selectedVariants.map(render))
+  .then(() => {
+    console.log(`Rendered hybrid heroes: ${selectedVariants.map((variant) => variant.language).join(", ")}.`);
+  })
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });

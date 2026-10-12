@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 enum RestSkipSetting: String, CaseIterable, Identifiable {
@@ -44,12 +45,22 @@ struct ScheduleSettingsScreen: View {
     @ObservedObject var settingsStore: SettingsStore
     let isWaitingToApplyRules: Bool
     let onApplyRulesToCurrentCycle: () -> Void
+    let notificationService: any NotificationSettingsServicing
+    let onOpenNotificationSettings: () -> Void
+
+    @State private var notificationPermissionStatus: NotificationPermissionStatus?
 
     var body: some View {
         SettingsScreenContainer {
             workAndRestGroup
             timingBehaviorGroup
             restActionsGroup
+        }
+        .task(id: settingsStore.rules.preBreakNotificationEnabled) {
+            await refreshNotificationPermissionStatus()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Task { await refreshNotificationPermissionStatus() }
         }
     }
 
@@ -63,13 +74,7 @@ struct ScheduleSettingsScreen: View {
                 DurationStepper(value: shortBreakSecondsBinding, range: 10...600, unit: L.tr("秒"))
             }
 
-            SettingsRow(title: L.tr("休息前通知")) {
-                DurationStepper(
-                    value: preBreakNotificationSecondsBinding,
-                    range: 0...120,
-                    unit: L.tr("秒前")
-                )
-            }
+            preBreakNotificationRows
 
             SettingsDivider()
 
@@ -94,18 +99,63 @@ struct ScheduleSettingsScreen: View {
         }
     }
 
+    @ViewBuilder
+    private var preBreakNotificationRows: some View {
+        SettingsRow(title: L.tr("休息前通知")) {
+            Picker(L.tr("休息前通知"), selection: preBreakNotificationEnabledBinding) {
+                Text(L.tr("不通知")).tag(false)
+                Text(L.tr("提前通知")).tag(true)
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .fixedSize()
+        }
+
+        if settingsStore.rules.preBreakNotificationEnabled {
+            SettingsRow(title: L.tr("提前时间"), role: .dependent, accessory: {
+                NotificationPermissionSettingsLink(status: notificationPermissionStatus, action: onOpenNotificationSettings)
+            }) {
+                DurationStepper(value: preBreakNotificationSecondsBinding, range: 1...120, unit: L.tr("秒"))
+            }
+        }
+    }
+
+    private func refreshNotificationPermissionStatus() async {
+        guard settingsStore.rules.preBreakNotificationEnabled else {
+            notificationPermissionStatus = nil
+            return
+        }
+        let status = await notificationService.authorizationStatus()
+        guard !Task.isCancelled, settingsStore.rules.preBreakNotificationEnabled else { return }
+        notificationPermissionStatus = status
+    }
+
     private var timingBehaviorGroup: some View {
         SettingsGroup(L.tr("计时行为")) {
             SettingsRow(
-                title: L.tr("空闲后视为已休息"),
-                description: L.tr("离开电脑达到这个时长后，不再补发本轮休息。")
+                title: L.tr("自动计为休息"),
+                description: settingsStore.settings.automaticRestMode.includesIdle
+                    ? L.tr("长时间阅读或看视频，也可能算作休息。") : nil
             ) {
-                DurationStepper(value: idleMinutesBinding, range: 1...30, unit: L.tr("分钟"))
+                SettingsMenuPicker(L.tr("自动计为休息"), selection: automaticRestModeBinding,
+                    options: AutomaticRestMode.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
             }
+
+            if settingsStore.settings.automaticRestMode.isEnabled {
+                SettingsRow(
+                    title: L.tr("至少持续"),
+                    description: L.tr("休息时间达到设定时长，返回后开始新的工作计时。"),
+                    role: .dependent
+                ) {
+                    DurationStepper(value: automaticRestMinutesBinding, range: 1...30, unit: L.tr("分钟"))
+                }
+            }
+
+            SettingsDivider()
 
             SettingsRow(
                 title: L.tr("屏幕镜像时暂停计时"),
-                description: L.tr("仅识别 AirPlay 或有线镜像；扩展桌面和软件共享不触发。")
+                description: L.tr("支持 AirPlay 或有线连接的同画面镜像；扩展桌面和软件共享时除外。")
             ) {
                 SettingsSwitch(
                     L.tr("屏幕镜像时暂停计时"),
@@ -188,10 +238,30 @@ struct ScheduleSettingsScreen: View {
         )
     }
 
-    private var idleMinutesBinding: Binding<Int> {
+    private var preBreakNotificationEnabledBinding: Binding<Bool> {
         Binding(
-            get: { settingsStore.idleMinutes },
-            set: { settingsStore.idleMinutes = $0 }
+            get: { settingsStore.rules.preBreakNotificationEnabled },
+            set: { enabled in
+                // Finish native segmented-control tracking before inserting or removing its dependent rows.
+                DispatchQueue.main.async {
+                    guard settingsStore.rules.preBreakNotificationEnabled != enabled else { return }
+                    settingsStore.rules.preBreakNotificationEnabled = enabled
+                }
+            }
+        )
+    }
+
+    private var automaticRestModeBinding: Binding<AutomaticRestMode> {
+        Binding(
+            get: { settingsStore.settings.automaticRestMode },
+            set: { settingsStore.settings.automaticRestMode = $0 }
+        )
+    }
+
+    private var automaticRestMinutesBinding: Binding<Int> {
+        Binding(
+            get: { settingsStore.automaticRestMinutes },
+            set: { settingsStore.automaticRestMinutes = $0 }
         )
     }
 
@@ -207,6 +277,48 @@ struct ScheduleSettingsScreen: View {
             get: { settingsStore.recoveryNudgeThreshold },
             set: { settingsStore.recoveryNudgeThreshold = $0 }
         )
+    }
+}
+
+private struct NotificationPermissionSettingsLink: View {
+    let status: NotificationPermissionStatus?
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: statusIcon)
+                    .foregroundStyle(statusColor)
+                HStack(spacing: 2) {
+                    Text(statusText)
+                        .foregroundStyle(.tint)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .regular))
+                        .foregroundStyle(.tint)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.link)
+        .font(.caption)
+        .fixedSize()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(statusText)
+        .accessibilityHint(L.tr("打开通知设置"))
+    }
+
+    private var statusText: String {
+        status?.settingsLinkTitle ?? L.tr("检测中…")
+    }
+
+    private var statusIcon: String {
+        guard let status else { return "ellipsis.circle" }
+        return status.canPresentNotifications ? "checkmark.circle" : "bell.slash"
+    }
+
+    private var statusColor: Color {
+        guard let status else { return .secondary }
+        return status.canPresentNotifications ? .green : .orange
     }
 }
 
@@ -244,7 +356,7 @@ private struct RuleChangeStatusRow: View {
     @ViewBuilder
     private var applyButton: some View {
         if effect == .nextCycle, hasPendingChanges {
-            Button(L.tr("本次应用到当前周期"), action: onApplyNow)
+            Button(L.tr("应用到当前周期"), action: onApplyNow)
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .fixedSize()
@@ -254,7 +366,7 @@ private struct RuleChangeStatusRow: View {
     private var statusText: String {
         switch effect {
         case .nextCycle:
-            L.tr("将在下一完整工作周期生效")
+            L.tr("更改将在下个工作周期生效")
         case .immediate:
             isWaitingToApply ? L.tr("正在应用到当前周期…") : L.tr("已应用到当前周期")
         }
