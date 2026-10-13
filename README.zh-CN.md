@@ -155,6 +155,7 @@ Breather 尚未使用 Apple Developer ID 签名，也未通过 Apple 公证。�
 
 | 版本 | 主要更新 |
 | --- | --- |
+| [0.5.0](https://github.com/M3tar/Breather/releases/tag/v0.5.0) | 三种界面语言、独立菜单栏设置页；改进休息识别与通知提示，降低后台 CPU 占用，补充 Homebrew 安装说明。 |
 | [0.4.0](https://github.com/M3tar/Breather/releases/tag/v0.4.0) | 后台检查更新，在菜单栏与设置中轻量提示；主题卡片增加动态标记。 |
 | [0.3.0](https://github.com/M3tar/Breather/releases/tag/v0.3.0) | 九种休息主题、多显示器与预览体验；新增“关于”页和反馈入口。 |
 | [0.2.0](https://github.com/M3tar/Breather/releases/tag/v0.2.0) | 原生设置重构、镜像保护，以及暂停、通知与规则生效体验改进。 |
@@ -198,10 +199,10 @@ xcodebuild \
 生成压缩的发布 DMG：
 
 ```sh
-./scripts/build-dmg.sh 0.4.0
+./scripts/build-dmg.sh 0.5.0
 ```
 
-安装包会写入 `dist/Breather-0.4.0.dmg`。如果开发机积累了旧的发布版注册记录，可以检查并修复 LaunchServices：
+安装包会写入 `dist/Breather-0.5.0.dmg`。如果开发机积累了旧的发布版注册记录，可以检查并修复 LaunchServices：
 
 ```sh
 ./scripts/reset-local-release-registration.sh --dry-run

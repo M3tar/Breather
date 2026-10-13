@@ -155,6 +155,7 @@ Each row covers the main changes. Follow a version link for full release notes a
 
 | Version | Main changes |
 | --- | --- |
+| [0.5.0](https://github.com/M3tar/Breather/releases/tag/v0.5.0) | Three interface languages, dedicated Menu bar settings, improved break recognition and notifications, lower background CPU use, and Homebrew installation guidance. |
 | [0.4.0](https://github.com/M3tar/Breather/releases/tag/v0.4.0) | Background update checks with quiet menu bar and Settings hints; motion labels on theme cards. |
 | [0.3.0](https://github.com/M3tar/Breather/releases/tag/v0.3.0) | Nine rest themes, improved multi-display and preview behavior, and an About page with feedback links. |
 | [0.2.0](https://github.com/M3tar/Breather/releases/tag/v0.2.0) | Native settings redesign, mirroring protection, and improved pause, notification, and rule changes. |
@@ -198,10 +199,10 @@ xcodebuild \
 Create a compressed release DMG:
 
 ```sh
-./scripts/build-dmg.sh 0.4.0
+./scripts/build-dmg.sh 0.5.0
 ```
 
-The artifact is written to `dist/Breather-0.4.0.dmg`. On a development Mac with stale release registrations, inspect and repair LaunchServices with:
+The artifact is written to `dist/Breather-0.5.0.dmg`. On a development Mac with stale release registrations, inspect and repair LaunchServices with:
 
 ```sh
 ./scripts/reset-local-release-registration.sh --dry-run
