@@ -3,9 +3,9 @@
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> · <a href="README.zh-CN.md"><strong>简体中文</strong></a>
+  <a href="README.md">English</a> / <a href="README.zh-CN.md"><strong>简体中文</strong></a>
   <br><br>
-  <a href="https://github.com/M3tar/Breather/releases/latest"><strong>下载 Breather DMG</strong></a> · <a href="#使用-homebrew">Homebrew 安装</a> · <a href="#版本更新">版本更新</a>
+  <a href="https://github.com/M3tar/Breather/releases/latest"><strong>下载 Breather DMG</strong></a> / <a href="#使用-homebrew">Homebrew 安装</a> / <a href="#版本更新">版本更新</a>
 </p>
 
 我做了一个提醒自己停一停的 macOS 小工具。做东西时，我常常一坐就是很久；明明知道该休息，提醒弹出来，手还是会顺势把它划掉。
@@ -24,7 +24,7 @@
   <a href="screenshots/timer-popover-paused-jade.jpg"><img src="screenshots/timer-popover-paused-jade.jpg" width="31%" alt="Breather 手动暂停状态与继续计时操作"></a>
 </p>
 
-<p align="center"><sub>左：工作中　·　中：镜像暂停　·　右：手动暂停（点击图片查看原尺寸）</sub></p>
+<p align="center"><sub>左：工作中　/　中：镜像暂停　/　右：手动暂停（点击图片查看原尺寸）</sub></p>
 
 ## 休息主题
 
@@ -47,7 +47,7 @@
   <a href="screenshots/rest-pixel-roam-dark-render.png"><img src="screenshots/rest-pixel-roam-dark-render.png" width="48%" alt="像素漫游深色休息界面的实际组件渲染"></a>
 </p>
 
-<p align="center"><sub>左：浅色模式　·　右：深色模式（实际组件渲染，点击图片查看原尺寸）</sub></p>
+<p align="center"><sub>左：浅色模式　/　右：深色模式（实际组件渲染，点击图片查看原尺寸）</sub></p>
 
 ### 窗帘、月光与晚风
 
@@ -62,7 +62,7 @@
   <a href="screenshots/rest-leaves-countdown.png"><img src="screenshots/rest-leaves-countdown.png" width="48%" alt="窗边叶影的浅色画面，中央显示倒计时与提示语"></a>
 </p>
 
-<p align="center"><sub>左：幕间休息　·　右：窗边叶影（点击图片查看原尺寸）</sub></p>
+<p align="center"><sub>左：幕间休息　/　右：窗边叶影（点击图片查看原尺寸）</sub></p>
 
 ### 雨声和落雪
 
@@ -72,7 +72,7 @@
 
 [![雪落无声的全屏休息界面，沙漠上飘雪并显示倒计时与休息操作](screenshots/rest-snow-countdown.png)](screenshots/rest-snow-countdown.png)
 
-<p align="center"><sub>雪落无声 · 全屏休息界面（点击图片查看原尺寸）</sub></p>
+<p align="center"><sub>雪落无声 / 全屏休息界面（点击图片查看原尺寸）</sub></p>
 
 ### 去远方
 
@@ -80,20 +80,71 @@
 
 [![云海列车的全屏休息界面，中央显示倒计时与休息操作](screenshots/rest-cloud-train-countdown.png)](screenshots/rest-cloud-train-countdown.png)
 
-<p align="center"><sub>云海列车 · 全屏休息界面（点击图片查看原尺寸）</sub></p>
+<p align="center"><sub>云海列车 / 全屏休息界面（点击图片查看原尺寸）</sub></p>
 
 ## 原生设置，保持安静
 
 默认打开“计划”，把常用的工作与休息安排放在眼前。
 
-- **工作与休息：** 调整时长、跳过与延后行为，规则可以立即应用或留到下个周期。
+- **工作与休息：** 调整工作、短休息与自动休息配置，统一选择立即应用或下个周期生效；也可设置跳过与延后行为。
 - **休息前通知：** 默认提前 20 秒，也可以关闭；提前时间旁可查看系统通知状态。
-- **自动计为休息：** 默认识别锁屏或电脑睡眠，满 5 分钟后，返回时开始新的工作计时。也可调整时长、包含无键鼠操作，或关闭识别。
+- **自动计为休息：** 默认识别锁屏或电脑睡眠，满 5 分钟后，返回时开始新的工作计时。时长支持按秒设置，也可选择识别无键鼠操作，或关闭识别。
+- **恢复默认：** “计划”“菜单栏”“休息界面”可分别恢复默认；确认前可查看将重置的设置，其他页面不受影响。
 - **语言与外观：** 支持简体中文、繁体中文、英文及跟随系统，切换后立即更新界面。
 
-![Breather 计划设置，展示休息前通知、自动计为休息及休息操作](screenshots/settings-schedule.zh-CN.png)
+[![Breather 0.6.0 计划设置，展示自动休息时长与修改生效时间](screenshots/settings-schedule.zh-CN.png)](screenshots/settings-schedule.zh-CN.png)
 
-<p align="center"><sub>截图为自定义配置示例。</sub></p>
+<p align="center"><sub>0.6.0 自定义配置示例，部分修改将在下个周期生效（点击图片查看原尺寸）。</sub></p>
+
+### 短休息与自动休息如何配合
+
+短休息时长决定休息界面的倒计时；自动休息时长决定锁屏、睡眠或无操作多久后，可以算作完成一次休息。两者可以不同，但自动休息时长不能更短。
+
+```mermaid
+flowchart TD
+    S[设置短休息时长] --> M{自动计为休息}
+    M -->|关闭| OFF[不自动识别休息]
+    M -->|锁屏或睡眠| L[自动时长不能短于短休息]
+    M -->|锁屏、睡眠或无操作| I[自动时长不能短于短休息<br/>且至少 60 秒]
+    L --> T[按秒设置自动休息时长]
+    I --> T
+    T --> E{修改生效时间}
+    OFF --> E
+    E -->|下个周期| NEXT[本周期保留原配置<br/>下个周期整组生效]
+    E -->|立即应用| NOW[整组应用新配置<br/>重新计算当前阶段倒计时]
+```
+
+例如，本周期短休息 **60 秒**、自动休息 **120 秒**。将短休息改为 **180 秒**后，保存的自动时长也会提高到 **180 秒**。选择“下个周期”时，本周期仍按 **60 / 120 秒**执行，下个周期才按 **180 / 180 秒**执行。单独修改自动时长或识别方式，也遵循同一生效时间。
+
+**锁屏或睡眠时，短休息倒计时暂停。** 返回时，若锁屏或睡眠的持续时间达到本周期的自动休息设定时长，则算完成休息，开始新的工作周期；未达到或已关闭识别，则继续锁屏前剩余的短休息时间。
+
+<details>
+<summary><strong>查看锁屏 1 分钟的例子与无操作说明</strong></summary>
+
+例如，短休息还剩 **20 秒**时锁屏，**1 分钟（60 秒）**后回来。这一分钟里，短休息倒计时一直暂停，因此剩余时间仍是 20 秒。解锁后，再根据本周期的自动休息配置决定是否算完成休息：
+
+```mermaid
+flowchart TD
+    START[短休息还剩 20 秒] --> LOCK[锁屏 60 秒<br/>短休息倒计时暂停，仍剩 20 秒]
+    LOCK --> UNLOCK[解锁返回]
+    UNLOCK --> MODE{本周期的自动休息配置}
+    MODE -->|设为 60 秒| MET[锁屏 60 秒已达标]
+    MODE -->|设为 120 秒| UNMET[锁屏 60 秒未达标]
+    MODE -->|关闭识别| OFF[不自动判定完成休息]
+    MET --> FRESH[视为完成休息<br/>开始新的工作周期]
+    UNMET --> RESUME[继续剩余的 20 秒短休息]
+    OFF --> RESUME
+```
+
+这里的 **120 秒**是“锁屏多久才能算完成休息”的门槛。锁屏只持续了 60 秒，尚未达标，所以继续之前暂停的 20 秒短休息。
+
+**选择“无操作”时：** 短休息结束后会正常开始工作计时。若持续没有键鼠操作，累计时间达到设定时长（含短休息期间），会被视为完成休息，并等待下次操作后开始新的工作计时。
+
+阅读或看视频时，可能长时间不操作键盘或鼠标，因此也会触发自动休息识别。若不希望如此，可选择“锁屏或睡眠”。
+
+以上以没有手动暂停、屏幕镜像等其他暂停原因为前提；其他暂停原因仍存在时，不会强行恢复计时。
+
+</details>
 
 ### 主题色与菜单栏图标
 
@@ -104,7 +155,7 @@
   <a href="screenshots/settings-menu-bar-icon-picker.zh-CN.png"><img src="screenshots/settings-menu-bar-icon-picker.zh-CN.png" width="48%" alt="菜单栏图标选择器，展示九种内置图标"></a>
 </p>
 
-<p align="center"><sub>左：弹窗主题色　·　右：菜单栏图标（点击图片查看原尺寸）</sub></p>
+<p align="center"><sub>左：弹窗主题色　/　右：菜单栏图标（点击图片查看原尺寸）</sub></p>
 
 ## 下载与安装
 
@@ -123,13 +174,13 @@ brew update
 brew upgrade --cask M3tar/tap/breather
 ```
 
-Homebrew 下载原始 Release DMG 并核对校验值，新版本在 [tap 更新](https://github.com/M3tar/homebrew-tap)后可用。
+Homebrew 下载原始 Release DMG 并核对校验值。升级、迁移与卸载方法见 [tap 安装说明](https://github.com/M3tar/homebrew-tap#install)。
 
 ### 下载 DMG
 
 前往 [GitHub Releases](https://github.com/M3tar/Breather/releases/latest) 下载最新 DMG，打开后将 **Breather** 拖入 **Applications（应用程序）**，再从应用程序文件夹启动。
 
-应用只检查正式版更新，会在后台自动检查，也可以在“设置 → 关于”手动检查。手动安装的用户，下载新 DMG 后替换应用即可。
+应用只检查正式版更新，会在后台自动检查，也可以在“设置 → 关于”手动检查。0.6.0 起，GitHub API 请求失败时会尝试静态更新清单，仍需能够连接 GitHub。手动安装的用户，下载新 DMG 后替换应用即可。
 
 ### 首次启动与已有安装
 
@@ -149,12 +200,15 @@ Breather 尚未使用 Apple Developer ID 签名，也未通过 Apple 公证。�
 
 哪里让你觉得舒服，或者哪里打扰了你，都欢迎通过“设置 → 关于”中的邮件或 [GitHub Issues](https://github.com/M3tar/Breather/issues)告诉我。
 
+遇到计时异常时，可在“设置 → 关于 → 反馈”的“运行日志”一行导出日志，并选择保存位置。日志默认开启，仅保存在本机，最多占用 20 MB，达到上限后滚动清理旧记录，不会自动上传。你也可以关闭或清除日志；清除不会影响已导出的文件。
+
 ## 版本更新
 
 每版主要变化如下，点击版本号查看完整更新与下载。
 
 | 版本 | 主要更新 |
 | --- | --- |
+| [0.6.0](https://github.com/M3tar/Breather/releases/tag/v0.6.0) | 新增运行日志，支持导出和清除；可单独恢复“计划”“菜单栏”或“休息界面”的默认设置。自动休息支持秒级配置，相关设置统一生效；更新检查增加备用清单，改进主题预览、云海列车调速与操作反馈。 |
 | [0.5.0](https://github.com/M3tar/Breather/releases/tag/v0.5.0) | 三种界面语言、独立菜单栏设置页；改进休息识别与通知提示，降低后台 CPU 占用，补充 Homebrew 安装说明。 |
 | [0.4.0](https://github.com/M3tar/Breather/releases/tag/v0.4.0) | 后台检查更新，在菜单栏与设置中轻量提示；主题卡片增加动态标记。 |
 | [0.3.0](https://github.com/M3tar/Breather/releases/tag/v0.3.0) | 九种休息主题、多显示器与预览体验；新增“关于”页和反馈入口。 |
@@ -199,10 +253,10 @@ xcodebuild \
 生成压缩的发布 DMG：
 
 ```sh
-./scripts/build-dmg.sh 0.5.0
+./scripts/build-dmg.sh 0.6.0
 ```
 
-安装包会写入 `dist/Breather-0.5.0.dmg`。如果开发机积累了旧的发布版注册记录，可以检查并修复 LaunchServices：
+安装包会写入 `dist/Breather-0.6.0.dmg`。如果开发机积累了旧的发布版注册记录，可以检查并修复 LaunchServices：
 
 ```sh
 ./scripts/reset-local-release-registration.sh --dry-run

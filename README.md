@@ -3,9 +3,9 @@
 </p>
 
 <p align="center">
-  <a href="README.md"><strong>English</strong></a> · <a href="README.zh-CN.md">简体中文</a>
+  <a href="README.md"><strong>English</strong></a> / <a href="README.zh-CN.md">简体中文</a>
   <br><br>
-  <a href="https://github.com/M3tar/Breather/releases/latest"><strong>Download Breather DMG</strong></a> · <a href="#install-with-homebrew">Install with Homebrew</a> · <a href="#release-history">Release history</a>
+  <a href="https://github.com/M3tar/Breather/releases/latest"><strong>Download Breather DMG</strong></a> / <a href="#install-with-homebrew">Install with Homebrew</a> / <a href="#release-history">Release history</a>
 </p>
 
 I made Breather to remind myself to pause. When I am making something, I can sit for hours. I know I should rest, yet it is easy to dismiss another reminder without thinking.
@@ -24,7 +24,7 @@ The menu bar popover keeps the current stage, remaining time, and next action to
   <a href="screenshots/timer-popover-paused-jade.en.png"><img src="screenshots/timer-popover-paused-jade.en.png" width="31%" alt="Breather manually paused with a resume action"></a>
 </p>
 
-<p align="center"><sub>Left: working · Center: mirroring pause · Right: manual pause<br>Click an image to view full size.</sub></p>
+<p align="center"><sub>Left: working / Center: mirroring pause / Right: manual pause<br>Click an image to view full size.</sub></p>
 
 ## Rest themes
 
@@ -47,7 +47,7 @@ I put little things I love into these scenes: a game dinosaur, curtains before b
   <a href="screenshots/rest-pixel-stroll-dark.en.png"><img src="screenshots/rest-pixel-stroll-dark.en.png" width="48%" alt="Pixel Stroll full-screen break in dark appearance"></a>
 </p>
 
-<p align="center"><sub>Left: light mode · Right: dark mode (click an image to view full size)</sub></p>
+<p align="center"><sub>Left: light mode / Right: dark mode (click an image to view full size)</sub></p>
 
 ### Curtains, moonlight, and a breeze
 
@@ -62,7 +62,7 @@ I put little things I love into these scenes: a game dinosaur, curtains before b
   <a href="screenshots/rest-leaves-countdown.en.png"><img src="screenshots/rest-leaves-countdown.en.png" width="48%" alt="Window Shadows with a light backdrop and a central countdown"></a>
 </p>
 
-<p align="center"><sub>Left: Intermission · Right: Window Shadows (click an image to view full size)</sub></p>
+<p align="center"><sub>Left: Intermission / Right: Window Shadows (click an image to view full size)</sub></p>
 
 ### Rain and snowfall
 
@@ -72,7 +72,7 @@ I put little things I love into these scenes: a game dinosaur, curtains before b
 
 [![Quiet Snowfall full-screen break with snow over a desert landscape](screenshots/rest-snow-countdown.en.png)](screenshots/rest-snow-countdown.en.png)
 
-<p align="center"><sub>Quiet Snowfall · Full-screen break (click to view full size)</sub></p>
+<p align="center"><sub>Quiet Snowfall / Full-screen break (click to view full size)</sub></p>
 
 ### Somewhere far away
 
@@ -80,20 +80,71 @@ I put little things I love into these scenes: a game dinosaur, curtains before b
 
 [![Cloudbound Train full-screen break with a central countdown](screenshots/rest-cloud-train-countdown.en.png)](screenshots/rest-cloud-train-countdown.en.png)
 
-<p align="center"><sub>Cloudbound Train · Full-screen break (click to view full size)</sub></p>
+<p align="center"><sub>Cloudbound Train / Full-screen break (click to view full size)</sub></p>
 
 ## Native settings, kept calm
 
 Settings opens to **Schedule**, keeping everyday work and break choices close at hand.
 
-- **Work and breaks:** Adjust durations, skip and snooze behavior. Apply timing changes now or in the next cycle.
+- **Work and breaks:** Configure work, short breaks, and automatic breaks, with one choice for when those changes take effect. Set skip and snooze behavior too.
 - **Advance reminder:** Enabled by default, 20 seconds before a break. You can turn it off and check notification status beside the advance time.
-- **Automatic breaks:** By default, locking your Mac or putting it to sleep for at least 5 minutes starts a fresh work timer when you return. Adjust the duration, include keyboard and mouse inactivity, or turn recognition off.
+- **Automatic breaks:** By default, locking your Mac or putting it to sleep for at least 5 minutes starts a fresh work timer when you return. Set the duration in seconds, include keyboard and mouse inactivity, or turn recognition off.
+- **Restore defaults:** Reset Schedule, Menu bar, or Break screen settings separately. Review what will change before confirming; other pages keep their settings.
 - **Language and appearance:** Use Simplified Chinese, Traditional Chinese, English, or your system language. Language changes take effect immediately.
 
 [![Schedule settings with advance reminders, automatic breaks, and break actions](screenshots/settings-schedule.en.png)](screenshots/settings-schedule.en.png)
 
-<p align="center"><sub>Custom configuration example (click to view full size)</sub></p>
+<p align="center"><sub>0.6.0 custom configuration with changes saved for the next session (click to view full size)</sub></p>
+
+### How short breaks and automatic breaks work together
+
+The short break duration controls the break-screen countdown. The automatic break duration sets how long your Mac must be locked, asleep, or inactive to count as a completed break. These durations can differ, but the automatic duration cannot be shorter.
+
+```mermaid
+flowchart TD
+    S[Set the short break duration] --> M{Automatically count as a break}
+    M -->|Off| OFF[No automatic break recognition]
+    M -->|Locked or asleep| L[Automatic duration must be<br/>at least as long as a short break]
+    M -->|Locked, asleep or no input| I[Automatic duration must be at least<br/>the short break duration and 60 seconds]
+    L --> T[Set the automatic duration in seconds]
+    I --> T
+    T --> E{When changes take effect}
+    OFF --> E
+    E -->|Next session| NEXT[Keep the current configuration<br/>Apply all changes next session]
+    E -->|Apply now| NOW[Apply all changes<br/>Recalculate the current countdown]
+```
+
+For example, the current session uses a **60-second** short break and a **120-second** automatic duration. Raising the short break to **180 seconds** also raises the saved automatic duration to **180 seconds**. With **Next session** selected, the current session keeps **60 / 120 seconds**; the next uses **180 / 180 seconds**. Changes to just the automatic duration or recognition mode follow the same rule.
+
+**Locking your Mac or putting it to sleep pauses the short break countdown.** On return, if the time spent locked or asleep reaches the automatic duration active for this session, the break counts as complete and a new work session starts. Otherwise, or if recognition is off, the remaining short break time resumes.
+
+<details>
+<summary><strong>See a one-minute lock example and how inactivity works</strong></summary>
+
+For example, lock your Mac with **20 seconds** left in a short break and return after **one minute (60 seconds)**. The break countdown stays paused throughout that minute, so it still has 20 seconds left. On unlock, the current session’s automatic break settings determine whether the break counts as complete:
+
+```mermaid
+flowchart TD
+    START[20 seconds left in the short break] --> LOCK[Mac locked for 60 seconds<br/>Break countdown paused, still 20 seconds left]
+    LOCK --> UNLOCK[Unlock and return]
+    UNLOCK --> MODE{Automatic break settings for this session}
+    MODE -->|Set to 60 seconds| MET[60 seconds locked meets the threshold]
+    MODE -->|Set to 120 seconds| UNMET[60 seconds locked is below the threshold]
+    MODE -->|Recognition off| OFF[Do not count the lock as a completed break]
+    MET --> FRESH[Count as a completed break<br/>Start a new work session]
+    UNMET --> RESUME[Resume the remaining 20-second break]
+    OFF --> RESUME
+```
+
+The **120-second** setting is how long your Mac must stay locked to count as a completed break. Only 60 seconds have passed, so the threshold has not been met and the paused 20-second break resumes.
+
+**When inactivity is included:** Work timing starts normally after a short break. If you continue without keyboard or mouse input and the total time without input reaches the set duration (including time during the short break), this counts as a completed break. Breather then waits for your next input before starting a new work session.
+
+When reading or watching a video, you may go a long time without using the keyboard or mouse, which can also trigger automatic break recognition. Choose **Locked or asleep** if you want to avoid this.
+
+These examples assume no other pause reason is active. A manual pause or screen mirroring can keep the timer paused.
+
+</details>
 
 ### Colors and menu bar icons
 
@@ -104,7 +155,7 @@ Sometimes a different color can change the mood. Choose a popover color and icon
   <a href="screenshots/settings-menu-bar-icon-picker.en.png"><img src="screenshots/settings-menu-bar-icon-picker.en.png" width="48%" alt="Menu bar icon picker with nine built-in icons"></a>
 </p>
 
-<p align="center"><sub>Left: popover colors · Right: menu bar icons (click an image to view full size)</sub></p>
+<p align="center"><sub>Left: popover colors / Right: menu bar icons (click an image to view full size)</sub></p>
 
 ## Download and install
 
@@ -123,13 +174,13 @@ brew update
 brew upgrade --cask M3tar/tap/breather
 ```
 
-Homebrew downloads the original Release DMG and checks its checksum. New versions become available after the [tap is updated](https://github.com/M3tar/homebrew-tap).
+Homebrew downloads the original Release DMG and checks its checksum. See the [tap instructions](https://github.com/M3tar/homebrew-tap#install) for upgrades, migration, and uninstallation.
 
 ### Download the DMG
 
 Download the latest DMG from [GitHub Releases](https://github.com/M3tar/Breather/releases/latest), open it, and drag **Breather** into **Applications**. Launch it from Applications.
 
-Breather checks for stable releases in the background. You can also check manually in **Settings → About**. For a manual installation, download the new DMG and replace the app.
+Breather checks for stable releases in the background. You can also check manually in **Settings → About**. Starting with 0.6.0, failed GitHub API requests fall back to a static update manifest. Both sources require access to GitHub. For a manual installation, download the new DMG and replace the app.
 
 ### First launch and existing installations
 
@@ -149,12 +200,15 @@ To switch from a manual installation to Homebrew, quit Breather, move the existi
 
 If something feels good—or gets in your way—I would love to hear about it through the email link in **Settings → About** or [GitHub Issues](https://github.com/M3tar/Breather/issues).
 
+For timer issues, export logs from **Settings → About → Feedback → Runtime logs**, then choose where to save them. Logging is on by default, stays on your Mac, and uses up to 20 MB, removing older records as needed. Logs are never uploaded automatically. You can turn logging off or clear stored logs; exported files are unaffected.
+
 ## Release history
 
 Each row covers the main changes. Follow a version link for full release notes and downloads.
 
 | Version | Main changes |
 | --- | --- |
+| [0.6.0](https://github.com/M3tar/Breather/releases/tag/v0.6.0) | Export and clear runtime logs; restore default settings for Schedule, Menu bar, or Break screen separately. Set automatic breaks in seconds and apply related settings together. Adds an update-check fallback, clearer theme previews, separate train animation speeds, and improved action feedback. |
 | [0.5.0](https://github.com/M3tar/Breather/releases/tag/v0.5.0) | Three interface languages, dedicated Menu bar settings, improved break recognition and notifications, lower background CPU use, and Homebrew installation guidance. |
 | [0.4.0](https://github.com/M3tar/Breather/releases/tag/v0.4.0) | Background update checks with quiet menu bar and Settings hints; motion labels on theme cards. |
 | [0.3.0](https://github.com/M3tar/Breather/releases/tag/v0.3.0) | Nine rest themes, improved multi-display and preview behavior, and an About page with feedback links. |
@@ -199,10 +253,10 @@ xcodebuild \
 Create a compressed release DMG:
 
 ```sh
-./scripts/build-dmg.sh 0.5.0
+./scripts/build-dmg.sh 0.6.0
 ```
 
-The artifact is written to `dist/Breather-0.5.0.dmg`. On a development Mac with stale release registrations, inspect and repair LaunchServices with:
+The artifact is written to `dist/Breather-0.6.0.dmg`. On a development Mac with stale release registrations, inspect and repair LaunchServices with:
 
 ```sh
 ./scripts/reset-local-release-registration.sh --dry-run
