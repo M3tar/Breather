@@ -6,7 +6,7 @@ import CoreGraphics
 /// session key are undocumented system signals, kept together at this boundary.
 @MainActor
 final class ComputerActivityMonitor {
-    enum Event: Sendable {
+    enum Event: String, Sendable {
         case sleep, wake, lock, unlock, sessionActive, sessionInactive
     }
 
@@ -14,6 +14,7 @@ final class ComputerActivityMonitor {
     static let screenUnlockedNotification = Notification.Name("com.apple.screenIsUnlocked")
 
     private(set) var state = ComputerActivityState()
+    var onEvent: ((DiagnosticSystemEvent) -> Void)?
     var onStateChanged: ((ComputerActivityState) -> Void)?
 
     private let workspaceCenter: NotificationCenter
@@ -42,7 +43,9 @@ final class ComputerActivityMonitor {
         observe(distributedCenter, Self.screenLockedNotification, event: .lock)
         observe(distributedCenter, Self.screenUnlockedNotification, event: .unlock)
         var initial = ComputerActivityState()
-        refreshSession(in: &initial)
+        let observed = refreshSession(in: &initial)
+        onEvent?(DiagnosticSystemEvent(name: "initialSample", before: state, after: initial,
+                                       observedLocked: observed.isLocked, observedSessionActive: observed.isSessionActive))
         publish(initial)
     }
 
@@ -62,26 +65,34 @@ final class ComputerActivityMonitor {
     private func handle(_ event: Event) {
         guard isRunning else { return }
         var next = state
+        var observation: (isLocked: Bool?, isSessionActive: Bool?)?
         switch event {
         case .sleep: next.isSleeping = true
         case .wake:
             next.isSleeping = false
             // Waking the machine does not imply that the user has unlocked it.
-            refreshSession(in: &next)
+            observation = refreshSession(in: &next)
         case .lock: next.isLocked = true
         case .unlock: next.isLocked = false
         case .sessionInactive: next.isSessionActive = false
         case .sessionActive:
             next.isSessionActive = true
-            refreshSession(in: &next)
+            observation = refreshSession(in: &next)
+        }
+        if onEvent != nil {
+            let observed = observation ?? readSession()
+            onEvent?(DiagnosticSystemEvent(name: event.rawValue, before: state, after: next,
+                                           observedLocked: observed.isLocked, observedSessionActive: observed.isSessionActive))
         }
         publish(next)
     }
 
-    private func refreshSession(in state: inout ComputerActivityState) {
+    @discardableResult
+    private func refreshSession(in state: inout ComputerActivityState) -> (isLocked: Bool?, isSessionActive: Bool?) {
         let current = readSession()
         if let locked = current.isLocked { state.isLocked = locked }
         if let active = current.isSessionActive { state.isSessionActive = active }
+        return current
     }
 
     private func publish(_ next: ComputerActivityState) {

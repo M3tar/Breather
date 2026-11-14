@@ -133,7 +133,7 @@ enum L {
         .init(pattern: #"^(\d+) 分 (\d+) 秒$"#, english: "{0} min {1} sec", traditional: "{0} 分 {1} 秒"),
         .init(pattern: #"^完整 (\d+) 分钟工作周期$"#, english: "a full {0}-minute work session", traditional: "完整的 {0} 分鐘工作時段"),
         .init(pattern: #"^暂停 (\d+)m$"#, english: "Paused {0}m", traditional: "暫停 {0} 分鐘"),
-        .init(pattern: #"^已暂停 · (.+)后重新开始$"#, english: "Paused · resumes in {0}", traditional: "已暫停 · {0} 後重新開始"),
+        .init(pattern: #"^已暂停，(.+)后重新开始$"#, english: "Paused, resumes in {0}", traditional: "已暫停，{0} 後重新開始"),
         .init(pattern: #"^(.+)后重新开始完整工作周期$"#, english: "A full work session starts in {0}", traditional: "{0} 後重新開始完整工作時段"),
         .init(pattern: #"^(.+)后补休$"#, english: "Break in {0}", traditional: "{0} 後補休"),
         .init(pattern: #"^将在(.+)后重新开始$"#, english: "Resumes in {0}", traditional: "將在 {0} 後重新開始"),

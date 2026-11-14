@@ -8,8 +8,8 @@ enum RuleChangeEffect: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .nextCycle: L.tr("下个周期生效")
-        case .immediate: L.tr("立即生效")
+        case .nextCycle: L.tr("下个周期")
+        case .immediate: L.tr("立即应用")
         }
     }
 }
@@ -369,6 +369,10 @@ enum RestSoundEffect: String, Codable, CaseIterable, Identifiable {
         fixedCases + [.random, .none]
     }
 
+    func selection(isEnabled: Bool) -> Self {
+        isEnabled && Self.selectableCases.contains(self) ? self : .none
+    }
+
     var title: String {
         switch self {
         case .stardewFishHook: L.tr("鱼上钩")
@@ -562,6 +566,50 @@ enum CurtainPalette: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum CloudTrainPlaybackSpeed: String, Codable, CaseIterable, Identifiable {
+    case half, threeQuarters, normal
+
+    var id: String { rawValue }
+
+    var multiplier: Double {
+        switch self {
+        case .half: 0.5
+        case .threeQuarters: 0.75
+        case .normal: 1
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .half: "0.5×"
+        case .threeQuarters: "0.75×"
+        case .normal: "1×"
+        }
+    }
+}
+
+enum CloudTrainForegroundSpeed: String, Codable, CaseIterable, Identifiable {
+    case half, threeQuarters, normal
+
+    var id: String { rawValue }
+
+    var multiplier: Double {
+        switch self {
+        case .half: 0.5
+        case .threeQuarters: 0.75
+        case .normal: 1
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .half: "0.5×"
+        case .threeQuarters: "0.75×"
+        case .normal: "1×"
+        }
+    }
+}
+
 struct AppSettings: Codable, Equatable {
     var appearancePreference: AppearancePreference = .system
     var showMenuBarIcon: Bool = true
@@ -587,8 +635,10 @@ struct AppSettings: Codable, Equatable {
     var restOverlayPrompt: RestOverlayPrompt = .lookFar
     var restOverlayContentMode: RestOverlayContentMode = .classic
     var curtainPalette: CurtainPalette = .smokedJade
+    var cloudTrainPlaybackSpeed: CloudTrainPlaybackSpeed = .half
+    var cloudTrainForegroundSpeed: CloudTrainForegroundSpeed = .threeQuarters
     var restOverlaySubtitle: RestOverlaySubtitle = .random
-    var restOverlayBackground: RestOverlayBackground = .solid
+    var restOverlayBackground: RestOverlayBackground = .sun
     var restOverlayFadeAnimation: Bool = true
     var restOverlayTranslucentBackground: Bool = false
     var rainAmbienceEnabled: Bool = true
@@ -638,10 +688,14 @@ struct AppSettings: Codable, Equatable {
         let migratesSheerLinen = storedRestOverlayContentMode == "sheerLinen"
         restOverlayContentMode = storedRestOverlayContentMode.flatMap(RestOverlayContentMode.init(rawValue:)) ?? .classic
         curtainPalette = try container.decodeIfPresent(CurtainPalette.self, forKey: .curtainPalette) ?? .smokedJade
+        let storedForegroundSpeed = try container.decodeIfPresent(String.self, forKey: .cloudTrainForegroundSpeed)
+        cloudTrainForegroundSpeed = storedForegroundSpeed.flatMap(CloudTrainForegroundSpeed.init(rawValue:)) ?? .threeQuarters
+        let storedCloudTrainSpeed = try container.decodeIfPresent(String.self, forKey: .cloudTrainPlaybackSpeed)
+        cloudTrainPlaybackSpeed = storedCloudTrainSpeed.flatMap(CloudTrainPlaybackSpeed.init(rawValue:)) ?? .half
         restOverlaySubtitle = try container.decodeIfPresent(RestOverlaySubtitle.self, forKey: .restOverlaySubtitle) ?? .random
         restOverlayBackground = migratesSheerLinen
             ? .linen
-            : try container.decodeIfPresent(RestOverlayBackground.self, forKey: .restOverlayBackground) ?? .solid
+            : try container.decodeIfPresent(RestOverlayBackground.self, forKey: .restOverlayBackground) ?? .sun
         restOverlayFadeAnimation = try container.decodeIfPresent(Bool.self, forKey: .restOverlayFadeAnimation) ?? true
         restOverlayTranslucentBackground = migratesSheerLinen
             ? false

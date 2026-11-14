@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsMenuOption<Value: Hashable> {
     let value: Value
     let title: String
+    var menuTitle: String? = nil
     var imageName: String? = nil
     var separatorBefore = false
 }
@@ -82,7 +83,7 @@ private struct NativeSettingsMenuPicker<Value: Hashable>: NSViewRepresentable {
             coordinator.imageNames.removeAll()
             coordinator.items = options.map { option in
                 if option.separatorBefore { popup.menu?.addItem(.separator()) }
-                let item = NSMenuItem(title: option.title, action: nil, keyEquivalent: "")
+                let item = NSMenuItem(title: option.menuTitle ?? option.title, action: nil, keyEquivalent: "")
                 popup.menu?.addItem(item)
                 return item
             }
@@ -91,7 +92,8 @@ private struct NativeSettingsMenuPicker<Value: Hashable>: NSViewRepresentable {
         }
         for (index, option) in options.enumerated() {
             let item = coordinator.items[index]
-            if item.title != option.title { item.title = option.title }
+            let menuTitle = option.menuTitle ?? option.title
+            if item.title != menuTitle { item.title = menuTitle }
             if coordinator.imageNames[index] != option.imageName {
                 item.image = settingsMenuImage(named: option.imageName)
                 coordinator.imageNames[index] = option.imageName

@@ -43,6 +43,7 @@
 "关闭预览" = "Close preview";
 "准备喘口气，看看远处。" = "Take a breath and look away from the screen.";
 "分钟" = "min";
+"分钟.countdown" = "Minutes";
 "分钟和秒" = "Minutes and seconds";
 "到点了，喘口气。" = "It's time to take a breath.";
 "前往 GitHub 下载" = "Download from GitHub";
@@ -68,7 +69,7 @@
 "更改将在下个工作周期生效" = "Changes take effect next work session";
 "小小的脚步，走过一段不赶路的时光" = "Wander at your own pace.";
 "屏幕镜像中" = "Screen mirroring is on";
-"屏幕镜像中 · 休息提醒已暂停" = "Mirroring · break reminders paused";
+"屏幕镜像中，休息提醒已暂停" = "Mirroring, break reminders paused";
 "屏幕镜像中，结束镜像后自动重新开始完整工作周期" = "Mirroring is on. A full work session begins when it ends.";
 "屏幕镜像时暂停计时" = "Pause during screen mirroring";
 "工作" = "Work";
@@ -79,7 +80,7 @@
 "已应用到当前周期" = "Applied to this session";
 "已授权" = "Allowed";
 "已暂停" = "Paused";
-"已暂停 · 直到手动继续" = "Paused · until you resume";
+"已暂停，直到手动继续" = "Paused, until you resume";
 "帷幕配色" = "Curtain colors";
 "幕间休息" = "Intermission";
 "应用" = "App";
@@ -113,7 +114,7 @@
 "晴日叶舞" = "Sunlit Leaves";
 "暂停" = "Pause";
 "暂停一下，再继续。" = "Pause for a moment, then carry on.";
-"暂时没有已发布的 DMG。" = "No downloadable DMG is available yet.";
+"暂时没有可下载的正式版本。" = "No downloadable stable release is available yet.";
 "暖石燕麦" = "Warm Oat";
 "更新" = "Update";
 "最近几次休息都被延后或跳过了，这次先把短休完成吧。" = "You've put off a few breaks. Give yourself a short rest.";
@@ -125,13 +126,13 @@
 "应用到当前周期" = "Apply to this session";
 "本轮结束后进入休息" = "Break after this session";
 "柔和" = "Soft";
-"检查失败，请确认网络连接后重试。" = "Couldn't check for updates. Check your connection and try again.";
+"暂时无法检查更新，请稍后重试。" = "Couldn't check for updates. Try again later.";
 "检查更新" = "Check for updates";
 "检测中…" = "Checking…";
 "检测到 AirPlay 或有线屏幕镜像" = "AirPlay or wired screen mirroring detected";
 "次" = "times";
 "正在应用到当前周期…" = "Applying to this session…";
-"正在检查 GitHub Releases…" = "Checking GitHub Releases…";
+"正在检查更新…" = "Checking for updates…";
 "正在检查更新" = "Checking for updates";
 "此刻留白" = "A Moment of Quiet";
 "活动后重新开始工作" = "New session when you return";
@@ -140,7 +141,7 @@
 "深色" = "Dark";
 "清脆" = "Crisp";
 "滑动刻度" = "Sliding ticks";
-"点击检查 GitHub 上发布的版本。" = "Check for a newer release on GitHub.";
+"点击检查 GitHub 上发布的正式版本。" = "Check for a newer stable release on GitHub.";
 "烟熏玉石" = "Smoked Jade";
 "版本" = "Version";
 "特殊物品" = "Special Item";
@@ -179,7 +180,7 @@
 "菜单栏弹窗" = "Menu bar popover";
 "规则生效时间" = "When changes take effect";
 "计划" = "Schedule";
-"计时行为" = "Timer behavior";
+"自动暂停" = "Automatic pause";
 "让日光与枝叶投影陪你停一会儿" = "Rest in dappled sunlight.";
 "让眼睛离开屏幕一会儿。" = "Give your eyes a moment away from the screen.";
 "设置" = "Settings";
@@ -245,3 +246,94 @@
 "系统通知临时授权" = "Provisional notification access";
 "系统通知不可用" = "Notifications unavailable";
 "桌面提醒已关闭" = "Desktop alerts off";
+
+"整体动画速度" = "Overall animation speed";
+
+"前景云层速度" = "Foreground cloud speed";
+
+/* Restore page defaults. */
+"还原计划设置…" = "Restore Schedule Settings…";
+"还原菜单栏设置…" = "Restore Menu Bar Settings…";
+"还原休息界面设置…" = "Restore Break Screen Settings…";
+"还原" = "Restore";
+"设置项" = "Setting";
+"当前值" = "Current";
+"还原后" = "After Restore";
+"其他主题设置" = "Other theme settings";
+"还原计划设置" = "Restore Schedule Settings";
+"还原菜单栏设置" = "Restore Menu Bar Settings";
+"还原休息界面设置" = "Restore Break Screen Settings";
+"%@（默认）" = "%@ (Default)";
+"开启" = "On";
+"%d 次" = "%d times";
+"%lld 分钟" = "%lld min";
+"%lld 分 %lld 秒" = "%lld min %lld sec";
+"%lld 秒" = "%lld sec";
+"当前 %@，还原后 %@" = "Current: %@. After restore: %@.";
+"%@，%@" = "%@, %@";
+"时长将在下个周期生效。" = "Default durations apply next session.";
+"休息前通知将在下个周期生效。" = "Advance reminder changes apply next session.";
+"时长和休息前通知将在下个周期生效。" = "Duration and advance reminder changes apply next session.";
+"休息画面的改动从下次休息生效。" = "Break screen changes take effect on the next break.";
+"长休息" = "Long breaks";
+"长休息间隔" = "Long break interval";
+"长休息时长" = "Long break duration";
+"允许跳过休息" = "Allow skipping breaks";
+"Esc 跳过休息" = "Skip breaks with Esc";
+"严格模式" = "Strict mode";
+"进入休息提示音" = "Break start sound";
+"结束休息提示音" = "Break end sound";
+"取消" = "Cancel";
+
+"清除日志…" = "Clear logs…";
+"暂时无法记录日志，将自动重试。" = "Unable to record logs. Retrying automatically.";
+"清除运行日志？" = "Clear runtime logs?";
+"清除" = "Clear";
+"将清除本机保存的运行日志，已导出的文件不受影响。" = "This will clear the runtime logs stored on this Mac. Exported files will not be affected.";
+"无法清除日志，请重试。" = "Unable to clear logs. Try again.";
+"运行日志" = "Runtime logs";
+"仅保存在本机，最多占用 20 MB。" = "Stored only on this Mac, using up to 20 MB.";
+"导出日志…" = "Export logs…";
+"无法导出日志，请重试。" = "Unable to export logs. Try again.";
+"导出…" = "Export…";
+"清除…" = "Clear…";
+"日志已导出" = "Logs exported";
+"日志已清除" = "Logs cleared";
+"关闭提示" = "Dismiss notification";
+
+"锁屏或睡眠" = "Locked or asleep";
+
+"至少持续，秒" = "Minimum duration, seconds";
+
+"已调整为 %@" = "Adjusted to %@";
+
+"当前周期至少 %@" = "Current session: at least %@";
+
+"阅读或看视频时若无键鼠操作，也可能被计为休息。" = "Reading or watching videos without keyboard or mouse input may count as a break.";
+
+"至少持续 %@，不能短于短休息时长。" = "At least %@, and no shorter than a short break.";
+
+"关闭时，锁屏或睡眠只暂停计时，不会自动完成休息。" = "When off, locking or sleeping only pauses the timer; it does not complete a break.";
+
+"锁屏或睡眠达到设定时长，视为完成休息；返回后重新开始工作计时。" = "Staying locked or asleep for the set duration counts as a completed break. The work timer restarts when you return.";
+
+"锁屏、睡眠或无操作达到设定时长，视为完成休息；返回后重新开始工作计时。" = "Staying locked, asleep or inactive for the set duration counts as a completed break. The work timer restarts when you return.";
+
+
+"修改生效时间" = "When changes take effect";
+
+"修改后重新开始当前计时。" = "Changes restart the current timer.";
+
+"应用并重新计时" = "Apply and restart timer";
+
+"已保存，下个周期生效" = "Saved for the next session";
+
+
+
+"本周期：短休息 %@。\n自动计为休息已关闭。" = "This session: short breaks last %@.\nAutomatic break recognition is off.";
+
+"本周期：短休息 %@。\n锁屏或睡眠达到 %@，即视为完成休息。" = "This session: short breaks last %@.\nBeing locked or asleep for %@ counts as a completed break.";
+
+"本周期：短休息 %@。\n锁屏、睡眠或无操作达到 %@，即视为完成休息。" = "This session: short breaks last %@.\nBeing locked, asleep or inactive for %@ counts as a completed break.";
+
+"半透明" = "Translucent";

@@ -5,6 +5,7 @@ struct SettingsView: View {
     @ObservedObject var settingsStore: SettingsStore
     @ObservedObject private var localizationRefresh = LocalizationRefresh.shared
     @ObservedObject var updateMonitor: UpdateMonitor
+    var diagnostics: DiagnosticsController? = nil
     let notificationService: any NotificationSettingsServicing
     let restSoundService: RestSoundService
     var restOverlayAvailability = RestOverlayAvailability()
@@ -12,8 +13,8 @@ struct SettingsView: View {
     let onPreviewRestOverlay: () -> Void
 
     @State private var selectedSection: SettingsSectionID = .schedule
-    @State private var isWaitingToApplyRules = false
-    @State private var ruleApplyTask: Task<Void, Never>?
+    @StateObject private var ruleApplication = SettingsRuleApplication()
+    @StateObject private var resetTransition = SettingsResetTransition()
     @State private var focusGeneralNotifications = false
 
     var body: some View {
@@ -26,7 +27,14 @@ struct SettingsView: View {
             )
             .navigationSplitViewColumnWidth(min: 150, ideal: 170, max: 200)
         } detail: {
-            selectedScreen
+            switch selectedSection {
+            case .schedule, .menuBar, .restOverlay:
+                SettingsResetTransitionContent(transition: resetTransition, store: settingsStore) {
+                    selectedScreen
+                }
+            case .general, .about:
+                selectedScreen
+            }
         }
         .frame(
             minWidth: SettingsWindowMetrics.minimumSize.width,
@@ -38,28 +46,27 @@ struct SettingsView: View {
             SettingsWindowInitialFocus()
                 .frame(width: 0, height: 0)
                 .accessibilityHidden(true)
+            SettingsFeedbackWindowObserver(onLeave: {
+                ruleApplication.finishPending(store: settingsStore, apply: { onApplyRulesToCurrentCycle() })
+            }, onReturn: scheduleCurrentCycleApply)
+                .frame(width: 0, height: 0)
         }
-        .onChange(of: settingsStore.settings) { oldSettings, newSettings in
-            guard oldSettings.ruleChangeEffect != newSettings.ruleChangeEffect else {
-                return
-            }
-
-            if newSettings.ruleChangeEffect == .immediate,
-               settingsStore.hasPendingRuleChanges {
-                scheduleCurrentCycleApply()
-            } else {
-                cancelScheduledRuleApply()
-            }
+        .onChange(of: settingsStore.settings.ruleChangeEffect) { _, _ in
+            scheduleCurrentCycleApply()
         }
-        .onChange(of: settingsStore.rules) { _, _ in
-            if settingsStore.settings.ruleChangeEffect == .immediate {
-                scheduleCurrentCycleApply()
-            }
+        .onChange(of: settingsStore.savedCycleConfiguration) { _, _ in
+            scheduleCurrentCycleApply()
         }
+        .onChange(of: settingsStore.currentCycleConfiguration) { _, _ in
+            if !settingsStore.hasPendingRuleChanges { cancelScheduledRuleApply() }
+        }
+        .onAppear { scheduleCurrentCycleApply() }
         .onDisappear {
-            cancelScheduledRuleApply()
+            ruleApplication.finishPending(store: settingsStore, apply: { onApplyRulesToCurrentCycle() })
+            resetTransition.cancel("page-disappeared")
         }
         .onChange(of: selectedSection) { _, section in
+            resetTransition.cancel("section-changed")
             if section != .general {
                 focusGeneralNotifications = false
             }
@@ -79,12 +86,16 @@ struct SettingsView: View {
         case .schedule:
             ScheduleSettingsScreen(
                 settingsStore: settingsStore,
-                isWaitingToApplyRules: isWaitingToApplyRules,
+                isWaitingToApplyRules: ruleApplication.isWaiting,
                 onApplyRulesToCurrentCycle: applyRulesToCurrentCycle,
                 notificationService: notificationService,
                 onOpenNotificationSettings: {
                     focusGeneralNotifications = true
                     selectedSection = .general
+                },
+                onRestoreDefaults: {
+                    cancelScheduledRuleApply()
+                    settingsStore.restoreDefaults(for: .schedule)
                 }
             )
         case .menuBar:
@@ -97,18 +108,12 @@ struct SettingsView: View {
                 onPreviewRestOverlay: onPreviewRestOverlay
             )
         case .about:
-            AboutSettingsScreen(updateMonitor: updateMonitor)
+            AboutSettingsScreen(updateMonitor: updateMonitor, diagnostics: diagnostics)
         }
     }
 
     private func scheduleCurrentCycleApply() {
-        isWaitingToApplyRules = true
-        ruleApplyTask?.cancel()
-        ruleApplyTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(900))
-            guard !Task.isCancelled else { return }
-            applyRulesToCurrentCycle()
-        }
+        ruleApplication.update(store: settingsStore, apply: { onApplyRulesToCurrentCycle() })
     }
 
     private func applyRulesToCurrentCycle() {
@@ -117,9 +122,7 @@ struct SettingsView: View {
     }
 
     private func cancelScheduledRuleApply() {
-        ruleApplyTask?.cancel()
-        ruleApplyTask = nil
-        isWaitingToApplyRules = false
+        ruleApplication.cancel()
     }
 
 }

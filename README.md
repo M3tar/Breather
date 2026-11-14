@@ -129,7 +129,7 @@ Homebrew downloads the original Release DMG and checks its checksum. New version
 
 Download the latest DMG from [GitHub Releases](https://github.com/M3tar/Breather/releases/latest), open it, and drag **Breather** into **Applications**. Launch it from Applications.
 
-Breather checks for updates in the background. You can also check manually in **Settings → About**. For a manual installation, download the new DMG and replace the app.
+Breather checks for stable releases in the background. You can also check manually in **Settings → About**. For a manual installation, download the new DMG and replace the app.
 
 ### First launch and existing installations
 

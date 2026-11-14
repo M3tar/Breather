@@ -5,6 +5,7 @@ enum SettingsWindowMetrics {
     static let minimumSize = CGSize(width: 760, height: 560)
     static let defaultSize = CGSize(width: 1080, height: 720)
     static let contentMaxWidth: CGFloat = 840
+    static let contentHorizontalPadding: CGFloat = 20
 }
 
 enum SettingsFooterMetrics {
@@ -108,7 +109,7 @@ struct SettingsScreenContainer<Content: View>: View {
             VStack(alignment: .leading, spacing: 18) {
                 content
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, SettingsWindowMetrics.contentHorizontalPadding)
             .padding(.vertical, 18)
             .frame(maxWidth: SettingsWindowMetrics.contentMaxWidth, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -150,9 +151,11 @@ enum SettingsRowRole {
     case dependent
 }
 
-private enum SettingsRowMetrics {
+enum SettingsRowMetrics {
     static let horizontalInset: CGFloat = 14
     static let verticalInset: CGFloat = 10
+    static let supportingTextSpacing: CGFloat = 3
+    static let helpIconSpacing: CGFloat = 4
     static let dependentIndent: CGFloat = 20
     static let dependentTopInset: CGFloat = 4
     static let guideInset: CGFloat = 18
@@ -160,10 +163,20 @@ private enum SettingsRowMetrics {
     static let guideHeight: CGFloat = 20
 }
 
+enum SettingsSupportingTextPlacement {
+    case belowLabel
+    case belowRow
+}
+
 struct SettingsRow<Control: View, Accessory: View>: View {
     let title: String
     let description: String?
     let role: SettingsRowRole
+    let supportingText: String?
+    let supportingTextPlacement: SettingsSupportingTextPlacement
+    let onSupportingTextHover: (Bool) -> Void
+    let accessorySpacing: CGFloat
+    let bottomInset: CGFloat
     @ViewBuilder let accessory: Accessory
     @ViewBuilder let control: Control
 
@@ -171,27 +184,43 @@ struct SettingsRow<Control: View, Accessory: View>: View {
         title: String,
         description: String? = nil,
         role: SettingsRowRole = .standalone,
+        bottomInset: CGFloat = SettingsRowMetrics.verticalInset,
+        supportingText: String? = nil,
+        supportingTextPlacement: SettingsSupportingTextPlacement = .belowLabel,
+        onSupportingTextHover: @escaping (Bool) -> Void = { _ in },
+        accessorySpacing: CGFloat = 16,
         @ViewBuilder accessory: () -> Accessory,
         @ViewBuilder control: () -> Control
     ) {
         self.title = title
         self.description = description
         self.role = role
+        self.bottomInset = bottomInset
+        self.supportingText = supportingText
+        self.supportingTextPlacement = supportingTextPlacement
+        self.onSupportingTextHover = onSupportingTextHover
+        self.accessorySpacing = accessorySpacing
         self.accessory = accessory()
         self.control = control()
     }
 
     var body: some View {
-        SettingsRowLayout {
+        SettingsRowLayout(supportingTextPlacement: supportingTextPlacement) {
             label
             control
                 .fixedSize(horizontal: true, vertical: false)
+            if let supportingText {
+                Text(supportingText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .onHover(perform: onSupportingTextHover)
+            }
         }
         .padding(.leading, SettingsRowMetrics.horizontalInset
                  + (role == .dependent ? SettingsRowMetrics.dependentIndent : 0))
         .padding(.trailing, SettingsRowMetrics.horizontalInset)
         .padding(.top, role == .dependent ? SettingsRowMetrics.dependentTopInset : SettingsRowMetrics.verticalInset)
-        .padding(.bottom, SettingsRowMetrics.verticalInset)
+        .padding(.bottom, bottomInset)
         .overlay(alignment: .topLeading) {
             if role == .dependent {
                 SettingsDependencyGuide()
@@ -206,7 +235,7 @@ struct SettingsRow<Control: View, Accessory: View>: View {
 
     private var label: some View {
         VStack(alignment: .leading, spacing: 3) {
-            HStack(alignment: .firstTextBaseline, spacing: 16) {
+            HStack(alignment: .firstTextBaseline, spacing: accessorySpacing) {
                 Text(title)
                     .font(.body)
                 accessory
@@ -227,9 +256,16 @@ extension SettingsRow where Accessory == EmptyView {
         title: String,
         description: String? = nil,
         role: SettingsRowRole = .standalone,
+        bottomInset: CGFloat = SettingsRowMetrics.verticalInset,
+        supportingText: String? = nil,
+        supportingTextPlacement: SettingsSupportingTextPlacement = .belowLabel,
+        onSupportingTextHover: @escaping (Bool) -> Void = { _ in },
         @ViewBuilder control: () -> Control
     ) {
-        self.init(title: title, description: description, role: role, accessory: { EmptyView() }, control: control)
+        self.init(title: title, description: description, role: role, bottomInset: bottomInset,
+                  supportingText: supportingText, supportingTextPlacement: supportingTextPlacement,
+                  onSupportingTextHover: onSupportingTextHover,
+                  accessory: { EmptyView() }, control: control)
     }
 }
 
@@ -245,30 +281,51 @@ private struct SettingsDependencyGuide: Shape {
 
 /// Reposition the same label and control when a row needs to wrap. Duplicating
 /// them in ViewThatFits would recreate native controls when the selection grows.
-private struct SettingsRowLayout: Layout {
+struct SettingsRowLayout: Layout {
+    var supportingTextPlacement: SettingsSupportingTextPlacement = .belowLabel
     private let horizontalSpacing: CGFloat = 38
     private let verticalSpacing: CGFloat = 8
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let sizes = measure(width: proposal.width, subviews: subviews)
-        return CGSize(width: sizes.width, height: sizes.stacked
-            ? sizes.label.height + verticalSpacing + sizes.control.height
-            : max(sizes.label.height, sizes.control.height))
+        let mainHeight = max(sizes.label.height, sizes.control.height)
+        let footerHeight = sizes.supporting.map { SettingsRowMetrics.supportingTextSpacing + $0.height } ?? 0
+        if supportingTextPlacement == .belowRow {
+            let rowHeight = sizes.stacked ? sizes.label.height + verticalSpacing + sizes.control.height : mainHeight
+            return CGSize(width: sizes.width, height: rowHeight + footerHeight)
+        }
+        let height = sizes.stacked
+            ? sizes.label.height + footerHeight + verticalSpacing + sizes.control.height
+            : max(mainHeight, (mainHeight + sizes.label.height) / 2 + footerHeight)
+        return CGSize(width: sizes.width, height: height)
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let sizes = measure(width: bounds.width, subviews: subviews)
-        let labelY = sizes.stacked ? bounds.minY : bounds.midY - sizes.label.height / 2
+        // A field hint follows its label; an option note follows the complete row.
+        let mainHeight = max(sizes.label.height, sizes.control.height)
+        let footerHeight = sizes.supporting.map { SettingsRowMetrics.supportingTextSpacing + $0.height } ?? 0
+        let mainMidY = sizes.supporting == nil ? bounds.midY : bounds.minY + mainHeight / 2
+        let labelY = sizes.stacked ? bounds.minY : mainMidY - sizes.label.height / 2
         let controlY = sizes.stacked
-            ? bounds.minY + sizes.label.height + verticalSpacing
-            : bounds.midY - sizes.control.height / 2
+            ? bounds.minY + sizes.label.height
+                + (supportingTextPlacement == .belowLabel ? footerHeight : 0) + verticalSpacing
+            : mainMidY - sizes.control.height / 2
         subviews[0].place(at: CGPoint(x: bounds.minX, y: labelY), anchor: .topLeading,
                           proposal: ProposedViewSize(sizes.label))
         subviews[1].place(at: CGPoint(x: bounds.maxX - sizes.control.width, y: controlY), anchor: .topLeading,
                           proposal: ProposedViewSize(sizes.control))
+        if let supporting = sizes.supporting {
+            let supportingY = supportingTextPlacement == .belowRow
+                ? max(labelY + sizes.label.height, controlY + sizes.control.height)
+                : labelY + sizes.label.height
+            subviews[2].place(at: CGPoint(x: bounds.minX,
+                y: supportingY + SettingsRowMetrics.supportingTextSpacing), anchor: .topLeading,
+                proposal: ProposedViewSize(supporting))
+        }
     }
 
-    private func measure(width: CGFloat?, subviews: Subviews) -> (width: CGFloat, label: CGSize, control: CGSize, stacked: Bool) {
+    private func measure(width: CGFloat?, subviews: Subviews) -> (width: CGFloat, label: CGSize, control: CGSize, stacked: Bool, supporting: CGSize?) {
         let labelIdeal = subviews[0].sizeThatFits(.unspecified)
         let control = subviews[1].sizeThatFits(.unspecified)
         let idealWidth = labelIdeal.width + horizontalSpacing + control.width
@@ -276,7 +333,10 @@ private struct SettingsRowLayout: Layout {
         let stacked = available < idealWidth
         let labelWidth = stacked ? available : max(0, available - horizontalSpacing - control.width)
         let label = subviews[0].sizeThatFits(ProposedViewSize(width: labelWidth, height: nil))
-        return (available, label, control, stacked)
+        let supportingWidth = supportingTextPlacement == .belowRow ? available : labelWidth
+        let supporting = subviews.count > 2
+            ? subviews[2].sizeThatFits(ProposedViewSize(width: supportingWidth, height: nil)) : nil
+        return (available, label, control, stacked, supporting)
     }
 }
 
@@ -441,17 +501,6 @@ private struct NumericTextField: NSViewRepresentable {
             self.parent = parent
         }
 
-        func controlTextDidChange(_ notification: Notification) {
-            guard let textField = notification.object as? NSTextField else {
-                return
-            }
-
-            let digitsOnly = textField.stringValue.filter(\.isNumber)
-            if digitsOnly != textField.stringValue {
-                textField.stringValue = digitsOnly
-            }
-        }
-
         func controlTextDidEndEditing(_ notification: Notification) {
             guard let textField = notification.object as? NSTextField else {
                 return
@@ -469,20 +518,30 @@ private struct NumericTextField: NSViewRepresentable {
                 return false
             }
 
-            commit(textField)
-            textField.window?.makeFirstResponder(nil)
+            if let window = textField.window {
+                // Ending editing commits through controlTextDidEndEditing exactly once.
+                window.makeFirstResponder(nil)
+            } else {
+                commit(textField)
+            }
             return true
         }
 
         private func commit(_ textField: NSTextField) {
-            guard let parsedValue = Int(textField.stringValue) else {
+            // Validate the whole edit. Removing punctuation could turn 60.5 into 605
+            // or -120 into 120. Invalid edits keep the last accepted value.
+            let text = textField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty,
+                  text.utf8.allSatisfy({ (48...57).contains($0) }),
+                  let parsedValue = Int(text) else {
                 textField.stringValue = "\(parent.value)"
                 return
             }
 
             let committedValue = clamped(parsedValue)
             parent.value = committedValue
-            textField.stringValue = "\(committedValue)"
+            // The binding may apply a cross-field constraint (for example a minimum duration).
+            textField.stringValue = "\(parent.value)"
         }
 
         private func clamped(_ input: Int) -> Int {

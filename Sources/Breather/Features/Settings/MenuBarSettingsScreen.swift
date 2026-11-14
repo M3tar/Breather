@@ -8,6 +8,13 @@ enum MenuBarIconSetting: Hashable {
         self = settings.showMenuBarIcon ? .icon(settings.menuBarIcon) : .hidden
     }
 
+    var title: String {
+        switch self {
+        case .hidden: L.tr("不显示")
+        case let .icon(icon): icon.title
+        }
+    }
+
     func apply(to settings: inout AppSettings) {
         switch self {
         case .hidden:
@@ -29,7 +36,7 @@ enum MenuBarCountdownSetting: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .hidden: L.tr("不显示")
-        case .minutes: L.tr("分钟")
+        case .minutes: L.tr("分钟", context: "countdown")
         case .minutesAndSeconds: L.tr("分钟和秒")
         }
     }
@@ -66,6 +73,7 @@ struct MenuBarSettingsScreen: View {
         SettingsScreenContainer {
             menuBarGroup
             menuBarPopoverGroup
+            SettingsResetButton(settingsStore: settingsStore, scope: .menuBar)
         }
     }
 
@@ -214,7 +222,7 @@ struct MenuBarIconControl: View {
 
     var body: some View {
         SettingsMenuPicker(L.tr("菜单栏图标"), selection: $selection, options:
-            [SettingsMenuOption(value: MenuBarIconSetting.hidden, title: L.tr("不显示"))]
+            [SettingsMenuOption(value: MenuBarIconSetting.hidden, title: MenuBarIconSetting.hidden.title)]
             + MenuBarIcon.allCases.enumerated().map { index, icon in
                 SettingsMenuOption(value: .icon(icon), title: icon.title,
                     imageName: icon.assetName, separatorBefore: index == 0)

@@ -129,7 +129,7 @@ Homebrew 下载原始 Release DMG 并核对校验值，新版本在 [tap 更新]
 
 前往 [GitHub Releases](https://github.com/M3tar/Breather/releases/latest) 下载最新 DMG，打开后将 **Breather** 拖入 **Applications（应用程序）**，再从应用程序文件夹启动。
 
-应用会在后台检查更新，也可以在“设置 → 关于”手动检查。手动安装的用户，下载新 DMG 后替换应用即可。
+应用只检查正式版更新，会在后台自动检查，也可以在“设置 → 关于”手动检查。手动安装的用户，下载新 DMG 后替换应用即可。
 
 ### 首次启动与已有安装
 

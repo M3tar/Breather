@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let settingsStore = SettingsStore()
     let notificationService = NotificationService()
     let updateMonitor = UpdateMonitor()
+    let diagnostics = DiagnosticsController()
     let restSoundService = RestSoundService()
     let restAmbientSoundService = RestAmbientSoundService()
     let restOverlayAvailability = RestOverlayAvailability()
@@ -43,6 +44,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             availability: restOverlayAvailability,
             ambientSoundService: restAmbientSoundService
         )
+
+        diagnostics.start(scheduler: scheduler, activity: computerActivityMonitor, overlay: restOverlayController, settings: settingsStore)
 
         menuBarController = MenuBarController(
             scheduler: scheduler,
@@ -105,16 +108,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        settingsStore.$settings
-            .map(\.automaticRestMode)
-            .removeDuplicates()
-            .dropFirst()
-            .sink { [weak self] _ in
-                // @Published sends before the store has installed the new value.
-                Task { @MainActor [weak self] in self?.scheduler.automaticRestSettingsDidChange() }
-            }
-            .store(in: &cancellables)
-
         NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)
             .merge(with: NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification))
             .sink { [weak self] _ in
@@ -157,6 +150,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         displayMirroringMonitor.stop()
         computerActivityMonitor.stop()
         restOverlayController?.shutdown()
+        // Include teardown events before writing the final appStopped record.
+        diagnostics.prepareForTermination()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

@@ -1,10 +1,12 @@
 import AppKit
+import ImageIO
 import SwiftUI
 
 struct RestOverlayBackgroundView: View {
     let background: RestOverlayBackground
     let style: RestOverlayStyle
     let translucent: Bool
+    var usesThumbnail = false
 
     private static let images: [String: NSImage] = {
         var result: [String: NSImage] = [:]
@@ -17,10 +19,30 @@ struct RestOverlayBackgroundView: View {
         return result
     }()
 
+    // Settings swatches are tiny. Keeping full-size photos behind them makes
+    // CPU snapshot resampling expensive even when most of the page is clipped.
+    // Cache bounded, eagerly decoded thumbnails once; full-screen rest retains
+    // the original images and resolution.
+    private static let thumbnailImages: [String: NSImage] = {
+        var result: [String: NSImage] = [:]
+        for background in RestOverlayBackground.allCases {
+            guard let name = background.imageName, let url = bundledImageURL(named: name),
+                  let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+                  let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                    kCGImageSourceCreateThumbnailFromImageAlways: true,
+                    kCGImageSourceThumbnailMaxPixelSize: 512,
+                    kCGImageSourceCreateThumbnailWithTransform: true,
+                    kCGImageSourceShouldCacheImmediately: true
+                  ] as CFDictionary) else { continue }
+            result[name] = NSImage(cgImage: image, size: .zero)
+        }
+        return result
+    }()
+
     var body: some View {
         Group {
             if let imageName = background.imageName,
-               let image = Self.images[imageName] {
+               let image = (usesThumbnail ? Self.thumbnailImages[imageName] : nil) ?? Self.images[imageName] {
                 GeometryReader { proxy in
                     Image(nsImage: image)
                         .resizable()
@@ -37,6 +59,10 @@ struct RestOverlayBackgroundView: View {
     }
 
     private static func bundledImage(named name: String) -> NSImage? {
+        bundledImageURL(named: name).flatMap(NSImage.init(contentsOf:))
+    }
+
+    private static func bundledImageURL(named name: String) -> URL? {
         let bundle: Bundle
         #if SWIFT_PACKAGE
         bundle = Bundle.module
@@ -44,15 +70,11 @@ struct RestOverlayBackgroundView: View {
         bundle = Bundle.main
         #endif
 
-        guard let url = bundle.url(
+        return bundle.url(
             forResource: name,
             withExtension: "png",
             subdirectory: "Backgrounds"
-        ) ?? bundle.url(forResource: name, withExtension: "png") else {
-            return nil
-        }
-
-        return NSImage(contentsOf: url)
+        ) ?? bundle.url(forResource: name, withExtension: "png")
     }
 }
 

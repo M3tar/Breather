@@ -15,6 +15,7 @@ struct RestThemePicker: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.controlActiveState) private var controlActiveState
+    @Environment(\.settingsResetFreezesPreviews) private var freezesPreviews
     @Binding var settings: AppSettings
     let duration: Int
     let isResting: Bool
@@ -65,7 +66,7 @@ struct RestThemePicker: View {
     }
 
     private var allowsThumbnailAnimation: Bool {
-        !reduceMotion && controlActiveState != .inactive
+        !reduceMotion && !freezesPreviews && controlActiveState != .inactive
     }
 }
 
@@ -117,13 +118,30 @@ struct RestThemeThumbnailConfiguration: Equatable {
     let background: RestOverlayBackground
     let translucent: Bool
     let curtainPalette: CurtainPalette
+    let cloudTrainPlaybackSpeed: CloudTrainPlaybackSpeed
+    let cloudTrainForegroundSpeed: CloudTrainForegroundSpeed
     let formattedTime: String
+
+    var badgeTitle: String? {
+        switch mode {
+        case .dinosaur, .windowLeaves, .sunny, .rainy, .snowy, .cloudTrain:
+            L.tr("动态")
+        case .curtain:
+            L.tr("转场")
+        case .classic:
+            background == .solid && translucent ? L.tr("半透明") : nil
+        case .moonlight:
+            nil
+        }
+    }
 
     init(mode: RestOverlayContentMode, settings: AppSettings, duration: Int) {
         self.mode = mode
         background = mode == .classic ? settings.restOverlayBackground : .solid
         translucent = mode == .classic && settings.restOverlayTranslucentBackground
         curtainPalette = settings.curtainPalette
+        cloudTrainPlaybackSpeed = settings.cloudTrainPlaybackSpeed
+        cloudTrainForegroundSpeed = settings.cloudTrainForegroundSpeed
         let seconds = max(0, duration)
         formattedTime = String(format: "%02d:%02d", seconds / 60, seconds % 60)
     }
@@ -155,8 +173,8 @@ struct RestContentOption: View {
             VStack(alignment: .leading, spacing: 10) {
                 RestThemeThumbnail(configuration: thumbnail, animated: animatesThumbnail)
                     .overlay(alignment: .topLeading) {
-                        if let motionBadge {
-                            RestThemeMotionBadge(title: motionBadge)
+                        if let badgeTitle = thumbnail.badgeTitle {
+                            RestThemeBadge(title: badgeTitle)
                                 .padding(6)
                         }
                     }
@@ -182,25 +200,15 @@ struct RestContentOption: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .buttonStyle(RestThemeOptionButtonStyle(isSelected: isSelected))
-        .accessibilityLabel(motionBadge.map { "\(mode.title)，\($0)" } ?? mode.title)
+        .accessibilityLabel(thumbnail.badgeTitle.map { "\(mode.title)，\($0)" } ?? mode.title)
         .accessibilityHint(mode.summary)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
         .help("\(mode.title)\n\(mode.summary)")
     }
 
-    private var motionBadge: String? {
-        switch mode {
-        case .dinosaur, .windowLeaves, .sunny, .rainy, .snowy, .cloudTrain:
-            L.tr("动态")
-        case .curtain:
-            L.tr("转场")
-        case .classic, .moonlight:
-            nil
-        }
-    }
 }
 
-private struct RestThemeMotionBadge: View {
+private struct RestThemeBadge: View {
     let title: String
 
     var body: some View {
@@ -257,7 +265,9 @@ struct RestThemeThumbnail: View {
                     animated: animated
                 )
             } else if let atmosphere {
-                AtmosphericRestBackdrop(atmosphere: atmosphere, animated: animated)
+                AtmosphericRestBackdrop(atmosphere: atmosphere, animated: animated,
+                                        cloudTrainPlaybackSpeed: configuration.cloudTrainPlaybackSpeed,
+                                        cloudTrainForegroundSpeed: configuration.cloudTrainForegroundSpeed)
             } else if configuration.mode == .dinosaur {
                 DinosaurPalette(dark: colorScheme == .dark).background
                 DinosaurLane(frame: Self.scene, palette: DinosaurPalette(dark: colorScheme == .dark))

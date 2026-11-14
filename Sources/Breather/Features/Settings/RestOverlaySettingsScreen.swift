@@ -53,7 +53,7 @@ enum RestOverlayBackgroundSetting: String, CaseIterable, Identifiable {
     }
 }
 
-private struct RestBackgroundStylePicker: View {
+struct RestBackgroundStylePicker: View {
     @Binding var selection: RestOverlayBackgroundSetting
 
     var body: some View {
@@ -152,39 +152,33 @@ where Option: Hashable & Identifiable, Preview: View {
     }
 }
 
-private struct RestBackgroundStyleSwatch: View {
+struct RestBackgroundStyleSwatch: View {
     @Environment(\.colorScheme) private var colorScheme
     let setting: RestOverlayBackgroundSetting
 
     var body: some View {
         ZStack {
-            if setting == .translucentSolid {
-                CheckerboardSwatch()
-            }
             RestOverlayBackgroundView(
                 background: setting.background,
                 style: RestOverlayStyle(background: setting.background, colorScheme: colorScheme),
-                translucent: setting == .translucentSolid
+                translucent: setting == .translucentSolid,
+                usesThumbnail: true
             )
-        }
-    }
-}
-
-private struct CheckerboardSwatch: View {
-    var body: some View {
-        Canvas { context, size in
-            let cell = size.height / 2
-            for row in 0..<2 {
-                for column in 0..<4 where (row + column).isMultiple(of: 2) {
-                    context.fill(
-                        Path(CGRect(x: CGFloat(column) * cell, y: CGFloat(row) * cell,
-                                    width: cell, height: cell)),
-                        with: .color(Color.secondary.opacity(0.14))
-                    )
+            if setting == .translucentSolid {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 2)
+                        .stroke(.secondary, lineWidth: 0.75)
+                        .offset(x: -2, y: -2)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(.secondary.opacity(0.10))
+                        .overlay(RoundedRectangle(cornerRadius: 2).stroke(.secondary, lineWidth: 0.75))
+                        .offset(x: 2, y: 2)
                 }
+                .frame(width: 10, height: 8)
+                .frame(width: 14, height: 12)
+                .accessibilityHidden(true)
             }
         }
-        .background(Color.primary.opacity(0.04))
     }
 }
 
@@ -214,6 +208,7 @@ struct RestOverlaySettingsScreen: View {
                 appearanceGroup
                 copyGroup
                 soundGroup
+                SettingsResetButton(settingsStore: settingsStore, scope: .restOverlay, isResting: availability.isResting)
             }
 
             previewActionBar
@@ -231,6 +226,27 @@ struct RestOverlaySettingsScreen: View {
             if settingsStore.settings.restOverlayContentMode == .curtain {
                 SettingsRow(title: L.tr("帷幕配色")) {
                     CurtainPalettePicker(selection: curtainPaletteBinding)
+                }
+            }
+
+            if settingsStore.settings.restOverlayContentMode == .cloudTrain {
+                SettingsRow(title: L.tr("整体动画速度")) {
+                    SettingsMenuPicker(L.tr("整体动画速度"), selection: $settingsStore.settings.cloudTrainPlaybackSpeed,
+                                       options: CloudTrainPlaybackSpeed.allCases.map {
+                        SettingsMenuOption(value: $0, title: $0.title,
+                                           menuTitle: $0 == AppSettings().cloudTrainPlaybackSpeed
+                                               ? String(format: L.tr("%@（默认）"), $0.title) : nil)
+                    })
+                    .fixedSize()
+                }
+                SettingsRow(title: L.tr("前景云层速度")) {
+                    SettingsMenuPicker(L.tr("前景云层速度"), selection: $settingsStore.settings.cloudTrainForegroundSpeed,
+                                       options: CloudTrainForegroundSpeed.allCases.map {
+                        SettingsMenuOption(value: $0, title: $0.title,
+                                           menuTitle: $0 == AppSettings().cloudTrainForegroundSpeed
+                                               ? String(format: L.tr("%@（默认）"), $0.title) : nil)
+                    })
+                    .fixedSize()
                 }
             }
 
@@ -365,11 +381,7 @@ struct RestOverlaySettingsScreen: View {
     private var restStartSoundEffectBinding: Binding<RestSoundEffect> {
         Binding(
             get: {
-                guard settingsStore.settings.playRestStartSound else {
-                    return .none
-                }
-                let effect = settingsStore.settings.restStartSoundEffect
-                return RestSoundEffect.selectableCases.contains(effect) ? effect : .none
+                settingsStore.settings.restStartSoundEffect.selection(isEnabled: settingsStore.settings.playRestStartSound)
             },
             set: { effect in
                 settingsStore.settings.restStartSoundEffect = effect
@@ -381,11 +393,7 @@ struct RestOverlaySettingsScreen: View {
     private var restEndSoundEffectBinding: Binding<RestSoundEffect> {
         Binding(
             get: {
-                guard settingsStore.settings.playRestEndSound else {
-                    return .none
-                }
-                let effect = settingsStore.settings.restEndSoundEffect
-                return RestSoundEffect.selectableCases.contains(effect) ? effect : .none
+                settingsStore.settings.restEndSoundEffect.selection(isEnabled: settingsStore.settings.playRestEndSound)
             },
             set: { effect in
                 settingsStore.settings.restEndSoundEffect = effect

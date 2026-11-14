@@ -38,6 +38,18 @@ final class BreakScheduler: ObservableObject {
     private let idleMonitor: any IdleTimeProviding
     private let pauseResumeSessionStore: PauseResumeSessionStore
     private let now: () -> Date
+    var onDiagnosticChange: ((String, DiagnosticSchedulerSnapshot) -> Void)?
+    private var diagnosticTickCount: UInt64 = 0
+    private var diagnosticLastTick: TimeInterval?
+    private var diagnosticLastProgress: TimeInterval?
+
+    var diagnosticSnapshot: DiagnosticSchedulerSnapshot {
+        DiagnosticSchedulerSnapshot(state: String(describing: state), previousState: String(describing: previousStateBeforePause),
+            pauseReasons: pauseReasons.map { String(describing: $0) }.sorted(), remainingSeconds: remainingSeconds,
+            tickCount: diagnosticTickCount, lastTickUptime: diagnosticLastTick, lastProgressUptime: diagnosticLastProgress,
+            countdownStartsAt: restCountdownStartsAt, activity: computerActivity)
+    }
+
     private var timer: Timer?
     private var notificationSent = false
     private var previousStateBeforePause: BreakState = .working
@@ -121,13 +133,13 @@ final class BreakScheduler: ObservableObject {
 
     var pauseStatusText: String? {
         if isDisplayMirroringPauseActive {
-            return L.tr("屏幕镜像中 · 休息提醒已暂停")
+            return L.tr("屏幕镜像中，休息提醒已暂停")
         }
         if let pauseResumeRemainingSeconds, isUserPauseActive {
-            return L.tr("已暂停 · \(formattedDuration(pauseResumeRemainingSeconds))后重新开始")
+            return L.tr("已暂停，\(formattedDuration(pauseResumeRemainingSeconds))后重新开始")
         }
         if isUserPauseActive {
-            return L.tr("已暂停 · 直到手动继续")
+            return L.tr("已暂停，直到手动继续")
         }
         if isComputerUnavailable { return computerPauseTitle }
         return nil
@@ -155,7 +167,7 @@ final class BreakScheduler: ObservableObject {
             return L.tr("不会提醒休息，直到你手动继续")
         }
         if isComputerUnavailable {
-            return settingsStore.settings.automaticRestMode.isEnabled
+            return settingsStore.currentAutomaticRestMode.isEnabled
                 ? L.tr("返回后根据离开时长继续或重新计时")
                 : L.tr("返回后继续原来的计时")
         }
@@ -258,8 +270,8 @@ final class BreakScheduler: ObservableObject {
 
         if previous.canCountAsRest, !activity.canCountAsRest {
             if let startedAt = automaticRestStartedAt,
-               settingsStore.settings.automaticRestMode.isEnabled,
-               currentDate.timeIntervalSince(startedAt) >= settingsStore.settings.automaticRestThreshold {
+               settingsStore.currentAutomaticRestMode.isEnabled,
+               currentDate.timeIntervalSince(startedAt) >= settingsStore.effectiveAutomaticRestThreshold {
                 consecutiveMissedBreaks = 0
                 prepareFreshWorkCycleAfterProtectedPause()
             }
@@ -272,12 +284,6 @@ final class BreakScheduler: ObservableObject {
             restoreStateAfterOrdinaryPauseIfPossible()
         }
         updateStatusText()
-    }
-
-    func automaticRestSettingsDidChange() {
-        if state == .idleRested, !settingsStore.settings.automaticRestMode.includesIdle {
-            resetWorkCycle()
-        }
     }
 
     func togglePause() {
@@ -390,6 +396,12 @@ final class BreakScheduler: ObservableObject {
     }
 
     func tick() {
+        diagnosticTickCount &+= 1
+        diagnosticLastTick = ProcessInfo.processInfo.systemUptime
+        let beforeRemaining = remainingSeconds
+        defer {
+            if remainingSeconds < beforeRemaining { diagnosticLastProgress = ProcessInfo.processInfo.systemUptime }
+        }
         if refreshPauseResumeSession() {
             return
         }
@@ -404,8 +416,8 @@ final class BreakScheduler: ObservableObject {
             return
         }
 
-        if settingsStore.settings.automaticRestMode.includesIdle,
-           idleMonitor.idleSeconds >= settingsStore.settings.automaticRestThreshold,
+        if settingsStore.currentAutomaticRestMode.includesIdle,
+           idleMonitor.idleSeconds >= settingsStore.effectiveAutomaticRestThreshold,
            state == .working || state == .notifying || state == .snoozing {
             state = .idleRested
             remainingSeconds = Int(settingsStore.currentCycleRules.workDuration)
@@ -554,7 +566,8 @@ final class BreakScheduler: ObservableObject {
         restCountdownStartsAt = now().addingTimeInterval(duration)
     }
 
-    private func updateStatusText() {
+    private func updateStatusText(reason: String = #function) {
+        defer { onDiagnosticChange?(reason, diagnosticSnapshot) }
         if let pauseStatusText {
             statusText = pauseStatusText
             return

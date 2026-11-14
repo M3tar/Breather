@@ -26,7 +26,19 @@ final class RestOverlayWindowController {
     private let presentsWindows: Bool
     private let ambientSoundService: RestAmbientSoundPlaying
     private(set) var windows: [UInt32: NSPanel] = [:]
+    var onDiagnosticChange: ((String, DiagnosticOverlaySnapshot) -> Void)?
     private(set) var session: RestOverlaySession?
+    var diagnosticSnapshot: DiagnosticOverlaySnapshot {
+        diagnosticSnapshot(for: session, windowCount: windows.count)
+    }
+
+    private func diagnosticSnapshot(for session: RestOverlaySession?, windowCount: Int) -> DiagnosticOverlaySnapshot {
+        DiagnosticOverlaySnapshot(sessionID: session?.id, kind: session.map { String(describing: $0.kind) },
+            remainingSeconds: session?.remainingSeconds, isDismissing: session?.isDismissing ?? false,
+            isAnimationPaused: session?.isAnimationPaused ?? false, windowCount: windowCount)
+    }
+
+    private func recordDiagnostic(_ reason: String) { onDiagnosticChange?(reason, diagnosticSnapshot) }
     // Focus routing only; every display renders the same animated session.
     private(set) var keyboardScreenID: UInt32?
     private var keyMonitor: Any?
@@ -70,6 +82,7 @@ final class RestOverlayWindowController {
             .merge(with: workspace.publisher(for: NSWorkspace.sessionDidResignActiveNotification))
             .sink { [weak self] _ in
                 self?.session?.setAnimationPaused(true)
+                self?.recordDiagnostic("animationPaused")
                 self?.ambientSoundService.stop()
             }
             .store(in: &cancellables)
@@ -77,6 +90,7 @@ final class RestOverlayWindowController {
             .merge(with: workspace.publisher(for: NSWorkspace.sessionDidBecomeActiveNotification))
             .sink { [weak self] _ in
                 self?.session?.setAnimationPaused(false)
+                self?.recordDiagnostic("animationResumed")
                 self?.startAmbientSoundIfNeeded()
             }
             .store(in: &cancellables)
@@ -96,6 +110,7 @@ final class RestOverlayWindowController {
         )
         present()
         startAmbientSoundIfNeeded()
+        recordDiagnostic("presented")
     }
 
     func preview() {
@@ -110,6 +125,7 @@ final class RestOverlayWindowController {
         session = preview
         present()
         startAmbientSoundIfNeeded()
+        recordDiagnostic("presented")
         previewTask = Task { @MainActor [weak self, weak preview] in
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
@@ -214,21 +230,22 @@ final class RestOverlayWindowController {
         guard let closingSession = session else { close(closingWindows); return }
         session = nil
         closingSession.beginDismissal()
-        guard animated, presentsWindows else { close(closingWindows); return }
+        onDiagnosticChange?("dismissalStarted", diagnosticSnapshot(for: closingSession, windowCount: closingWindows.count))
+        guard animated, presentsWindows else { close(closingWindows, diagnosticSession: closingSession); return }
 
         if closingSession.contentMode == .curtain {
             // Keep the transparent panels alive until the opening film completes.
             closingWindows.forEach { $0.alphaValue = 1 }
             Task { @MainActor in
                 try? await Task.sleep(for: CurtainTiming.openingDuration)
-                self.close(closingWindows)
+                self.close(closingWindows, diagnosticSession: closingSession)
             }
         } else if closingSession.background == .sun {
             // Preserve the existing sun treatment: content fades before its background.
             closingWindows.forEach { $0.alphaValue = 1 }
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(220))
-                self.close(closingWindows)
+                self.close(closingWindows, diagnosticSession: closingSession)
             }
         } else {
             NSAnimationContext.runAnimationGroup { context in
@@ -236,7 +253,7 @@ final class RestOverlayWindowController {
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 closingWindows.forEach { $0.animator().alphaValue = 0 }
             } completionHandler: {
-                Task { @MainActor in self.close(closingWindows) }
+                Task { @MainActor in self.close(closingWindows, diagnosticSession: closingSession) }
             }
         }
     }
@@ -258,11 +275,14 @@ final class RestOverlayWindowController {
         ambientSoundService.playRain()
     }
 
-    private func close(_ panels: [NSPanel]) {
+    private func close(_ panels: [NSPanel], diagnosticSession: RestOverlaySession? = nil) {
         panels.forEach {
             $0.orderOut(nil)
             $0.contentView = nil
             $0.close()
+        }
+        if let diagnosticSession {
+            onDiagnosticChange?("dismissalCompleted", diagnosticSnapshot(for: diagnosticSession, windowCount: 0))
         }
     }
 

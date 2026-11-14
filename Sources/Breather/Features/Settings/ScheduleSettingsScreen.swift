@@ -47,20 +47,29 @@ struct ScheduleSettingsScreen: View {
     let onApplyRulesToCurrentCycle: () -> Void
     let notificationService: any NotificationSettingsServicing
     let onOpenNotificationSettings: () -> Void
+    var onRestoreDefaults: (() -> Void)? = nil
 
     @State private var notificationPermissionStatus: NotificationPermissionStatus?
+    @StateObject private var durationFeedback = SettingsToastPresenter()
 
     var body: some View {
         SettingsScreenContainer {
             workAndRestGroup
             timingBehaviorGroup
             restActionsGroup
+            SettingsResetButton(settingsStore: settingsStore, scope: .schedule, onRestore: onRestoreDefaults)
         }
         .task(id: settingsStore.rules.preBreakNotificationEnabled) {
             await refreshNotificationPermissionStatus()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             Task { await refreshNotificationPermissionStatus() }
+        }
+        .onAppear { durationFeedback.appear() }
+        .onDisappear { durationFeedback.disappear() }
+        .background {
+            SettingsFeedbackWindowObserver(onLeave: durationFeedback.disappear, onReturn: durationFeedback.appear)
+                .frame(width: 0, height: 0)
         }
     }
 
@@ -76,12 +85,16 @@ struct ScheduleSettingsScreen: View {
 
             preBreakNotificationRows
 
+            automaticRestRows
             SettingsDivider()
 
-            SettingsRow(title: L.tr("规则生效时间")) {
-                Picker(L.tr("规则生效时间"), selection: ruleChangeEffectBinding) {
-                    Text(L.tr("下个周期")).tag(RuleChangeEffect.nextCycle)
-                    Text(L.tr("立即应用")).tag(RuleChangeEffect.immediate)
+            SettingsRow(title: L.tr("修改生效时间"),
+                        description: settingsStore.settings.ruleChangeEffect == .immediate
+                            ? L.tr("修改后重新开始当前计时。") : nil) {
+                Picker(L.tr("修改生效时间"), selection: ruleChangeEffectBinding) {
+                    ForEach(RuleChangeEffect.allCases) { effect in
+                        Text(effect.title).tag(effect)
+                    }
                 }
                 .labelsHidden()
                 .pickerStyle(.segmented)
@@ -93,6 +106,7 @@ struct ScheduleSettingsScreen: View {
                     effect: settingsStore.settings.ruleChangeEffect,
                     hasPendingChanges: settingsStore.hasPendingRuleChanges,
                     isWaitingToApply: isWaitingToApplyRules,
+                    currentCycleSummary: currentCycleSummary,
                     onApplyNow: onApplyRulesToCurrentCycle
                 )
             }
@@ -130,29 +144,38 @@ struct ScheduleSettingsScreen: View {
         notificationPermissionStatus = status
     }
 
-    private var timingBehaviorGroup: some View {
-        SettingsGroup(L.tr("计时行为")) {
-            SettingsRow(
-                title: L.tr("自动计为休息"),
-                description: settingsStore.settings.automaticRestMode.includesIdle
-                    ? L.tr("长时间阅读或看视频，也可能算作休息。") : nil
-            ) {
-                SettingsMenuPicker(L.tr("自动计为休息"), selection: automaticRestModeBinding,
-                    options: AutomaticRestMode.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
-            }
-
-            if settingsStore.settings.automaticRestMode.isEnabled {
-                SettingsRow(
-                    title: L.tr("至少持续"),
-                    description: L.tr("休息时间达到设定时长，返回后开始新的工作计时。"),
-                    role: .dependent
-                ) {
-                    DurationStepper(value: automaticRestMinutesBinding, range: 1...30, unit: L.tr("分钟"))
+    @ViewBuilder
+    private var automaticRestRows: some View {
+        SettingsRow(title: L.tr("自动计为休息"),
+                    supportingText: settingsStore.settings.automaticRestMode.includesIdle
+                        ? L.tr("阅读或看视频时若无键鼠操作，也可能被计为休息。") : nil,
+                    supportingTextPlacement: .belowRow,
+                    accessorySpacing: SettingsRowMetrics.helpIconSpacing,
+                    accessory: {
+            SettingsHelp(message: automaticRestHelp)
+                .frame(width: 18, height: 18)
+                .alignmentGuide(.firstTextBaseline) { dimensions in
+                    dimensions.height / 2 + NSFont.systemFont(ofSize: NSFont.systemFontSize).capHeight / 2
                 }
+        }) {
+            SettingsMenuPicker(L.tr("自动计为休息"), selection: automaticRestModeBinding,
+                options: AutomaticRestMode.allCases.map { SettingsMenuOption(value: $0, title: $0.title) })
+        }
+
+        if settingsStore.settings.automaticRestMode.isEnabled {
+            SettingsRow(title: L.tr("至少持续"), role: .dependent,
+                        supportingText: durationFeedback.message?.text ?? automaticRestMinimumLabel,
+                        onSupportingTextHover: durationFeedback.setHovered) {
+                DurationStepper(value: automaticRestSecondsBinding,
+                                range: 0...AutomaticRestDuration.maximum, unit: L.tr("秒"))
+                    .accessibilityLabel(L.tr("至少持续，秒"))
             }
+        }
 
-            SettingsDivider()
+    }
 
+    private var timingBehaviorGroup: some View {
+        SettingsGroup(L.tr("自动暂停")) {
             SettingsRow(
                 title: L.tr("屏幕镜像时暂停计时"),
                 description: L.tr("支持 AirPlay 或有线连接的同画面镜像；扩展桌面和软件共享时除外。")
@@ -227,7 +250,11 @@ struct ScheduleSettingsScreen: View {
     private var shortBreakSecondsBinding: Binding<Int> {
         Binding(
             get: { settingsStore.shortBreakSeconds },
-            set: { settingsStore.shortBreakSeconds = $0 }
+            set: { value in
+                let previous = settingsStore.automaticRestSeconds
+                settingsStore.shortBreakSeconds = value
+                showDurationAdjustment(ifChangedFrom: previous)
+            }
         )
     }
 
@@ -254,15 +281,65 @@ struct ScheduleSettingsScreen: View {
     private var automaticRestModeBinding: Binding<AutomaticRestMode> {
         Binding(
             get: { settingsStore.settings.automaticRestMode },
-            set: { settingsStore.settings.automaticRestMode = $0 }
+            set: { mode in
+                let previous = settingsStore.automaticRestSeconds
+                settingsStore.settings.automaticRestMode = mode
+                showDurationAdjustment(ifChangedFrom: previous)
+            }
         )
     }
 
-    private var automaticRestMinutesBinding: Binding<Int> {
+    private var automaticRestSecondsBinding: Binding<Int> {
         Binding(
-            get: { settingsStore.automaticRestMinutes },
-            set: { settingsStore.automaticRestMinutes = $0 }
+            get: { settingsStore.automaticRestSeconds },
+            set: { value in
+                settingsStore.automaticRestSeconds = value
+                showDurationAdjustment(ifChangedFrom: value)
+            }
         )
+    }
+
+    private var automaticRestMinimumLabel: String {
+        return String(format: L.tr("至少持续 %@，不能短于短休息时长。"),
+                      automaticRestSecondsLabel(settingsStore.automaticRestMinimumSeconds))
+    }
+
+    private var currentCycleSummary: String {
+        let short = automaticRestSecondsLabel(Int(settingsStore.currentCycleRules.shortBreakDuration))
+        let threshold = automaticRestSecondsLabel(Int(settingsStore.effectiveAutomaticRestThreshold))
+        switch settingsStore.currentAutomaticRestMode {
+        case .disabled:
+            return String(format: L.tr("本周期：短休息 %@。\n自动计为休息已关闭。"), short)
+        case .lockOrSleep:
+            return String(format: L.tr("本周期：短休息 %@。\n锁屏或睡眠达到 %@，即视为完成休息。"), short, threshold)
+        case .lockSleepOrIdle:
+            return String(format: L.tr("本周期：短休息 %@。\n锁屏、睡眠或无操作达到 %@，即视为完成休息。"), short, threshold)
+        }
+    }
+
+    private var automaticRestHelp: String {
+        switch settingsStore.settings.automaticRestMode {
+        case .disabled:
+            L.tr("关闭时，锁屏或睡眠只暂停计时，不会自动完成休息。")
+        case .lockOrSleep:
+            L.tr("锁屏或睡眠达到设定时长，视为完成休息；返回后重新开始工作计时。")
+        case .lockSleepOrIdle:
+            L.tr("锁屏、睡眠或无操作达到设定时长，视为完成休息；返回后重新开始工作计时。")
+        }
+    }
+
+    private func automaticRestSecondsLabel(_ seconds: Int) -> String {
+        String(format: L.tr("%lld 秒"), seconds)
+    }
+
+    private func showDurationAdjustment(ifChangedFrom previous: Int) {
+        guard settingsStore.settings.automaticRestMode.isEnabled,
+              previous != settingsStore.automaticRestSeconds else {
+            durationFeedback.dismiss()
+            return
+        }
+        durationFeedback.show(SettingsToastMessage(text: String(format: L.tr("已调整为 %@"),
+            automaticRestSecondsLabel(settingsStore.automaticRestSeconds))))
     }
 
     private var snoozeMinutesBinding: Binding<Int> {
@@ -326,6 +403,7 @@ private struct RuleChangeStatusRow: View {
     let effect: RuleChangeEffect
     let hasPendingChanges: Bool
     let isWaitingToApply: Bool
+    let currentCycleSummary: String
     let onApplyNow: () -> Void
 
     var body: some View {
@@ -342,21 +420,27 @@ private struct RuleChangeStatusRow: View {
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, SettingsRowMetrics.horizontalInset)
+        .padding(.bottom, SettingsRowMetrics.verticalInset)
     }
 
     private var statusLabel: some View {
-        Label(statusText, systemImage: statusIcon)
-            .font(.caption)
-            .foregroundStyle(statusColor)
-            .fixedSize(horizontal: false, vertical: true)
+        HStack(spacing: SettingsRowMetrics.helpIconSpacing) {
+            Label(statusText, systemImage: statusIcon)
+                .font(.caption)
+                .foregroundStyle(statusColor)
+                .fixedSize(horizontal: false, vertical: true)
+            if hasPendingChanges {
+                SettingsHelp(message: currentCycleSummary, identifier: "current-cycle-help")
+                    .frame(width: 18, height: 18)
+            }
+        }
     }
 
     @ViewBuilder
     private var applyButton: some View {
         if effect == .nextCycle, hasPendingChanges {
-            Button(L.tr("应用到当前周期"), action: onApplyNow)
+            Button(L.tr("应用并重新计时"), action: onApplyNow)
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .fixedSize()
@@ -366,7 +450,7 @@ private struct RuleChangeStatusRow: View {
     private var statusText: String {
         switch effect {
         case .nextCycle:
-            L.tr("更改将在下个工作周期生效")
+            L.tr("已保存，下个周期生效")
         case .immediate:
             isWaitingToApply ? L.tr("正在应用到当前周期…") : L.tr("已应用到当前周期")
         }

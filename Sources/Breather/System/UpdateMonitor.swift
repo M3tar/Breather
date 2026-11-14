@@ -16,11 +16,11 @@ enum UpdateStatus {
 
     var message: String {
         switch self {
-        case .idle: L.tr("点击检查 GitHub 上发布的版本。")
-        case .checking: L.tr("正在检查 GitHub Releases…")
+        case .idle: L.tr("点击检查 GitHub 上发布的正式版本。")
+        case .checking: L.tr("正在检查更新…")
         case .upToDate: L.tr("当前已是最新版本")
         case let .available(update): L.tr("发现新版本 v\(update.version)，可前往 GitHub 手动下载。")
-        case .noDownload: L.tr("暂时没有已发布的 DMG。")
+        case .noDownload: L.tr("暂时没有可下载的正式版本。")
         case let .failed(message): message
         }
     }
@@ -34,10 +34,13 @@ final class UpdateMonitor: ObservableObject {
     private let userDefaults: UserDefaults
     private let installedVersion: String
     private let now: () -> Date
-    private let checkRelease: @MainActor (String) async throws -> UpdateCheckResult
+    private let checkRelease: @MainActor (String) async throws -> UpdateCheckResponse
     private var automaticTask: Task<Void, Never>?
 
     private let lastAttemptKey = "breather.update.lastAttemptAt"
+    private let nextCheckKey = "breather.update.nextCheckAt"
+    private let lastSuccessKey = "breather.update.lastSuccessAt"
+    private let failedCheckInterval: TimeInterval = 60 * 60
     private let lastResultKey = "breather.update.lastResult"
     private let availableVersionKey = "breather.update.availableVersion"
     private let availableURLKey = "breather.update.availableURL"
@@ -47,31 +50,29 @@ final class UpdateMonitor: ObservableObject {
         userDefaults: UserDefaults = .standard,
         installedVersion: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
         now: @escaping () -> Date = Date.init,
-        checkRelease: @escaping @MainActor (String) async throws -> UpdateCheckResult = {
-            try await UpdateChecker().check(installedVersion: $0)
-        }
+        checkRelease: (@MainActor (String) async throws -> UpdateCheckResponse)? = nil
     ) {
         self.userDefaults = userDefaults
         self.installedVersion = installedVersion
         self.now = now
-        self.checkRelease = checkRelease
+        let checker = UpdateChecker(userDefaults: userDefaults, now: now)
+        self.checkRelease = checkRelease ?? { try await checker.check(installedVersion: $0) }
 
         if let version = userDefaults.string(forKey: availableVersionKey),
+           UpdateChecker.isStableVersion(version),
            let versionNumber = AppVersion(version),
            let installedNumber = AppVersion(installedVersion),
            versionNumber > installedNumber,
            let urlString = userDefaults.string(forKey: availableURLKey),
            let url = URL(string: urlString),
-           url.host == "github.com" {
+           (UpdateChecker.isReleaseURL(url, tag: "v\(version)")
+                || UpdateChecker.isReleaseURL(url, tag: version)) {
             let update = AvailableUpdate(version: version, releaseURL: url)
             availableUpdate = update
             status = .available(update)
         } else {
-            switch userDefaults.string(forKey: lastResultKey) {
-            case "upToDate": status = .upToDate
-            case "noDownload": status = .noDownload
-            default: status = .idle
-            }
+            // A previous "up to date" result is not proof of today's latest version.
+            clearCachedUpdate()
         }
     }
 
@@ -93,8 +94,8 @@ final class UpdateMonitor: ObservableObject {
     }
 
     func checkIfDue() async {
-        if let lastAttempt = userDefaults.object(forKey: lastAttemptKey) as? Date,
-           now().timeIntervalSince(lastAttempt) < automaticCheckInterval {
+        if let nextCheck = userDefaults.object(forKey: nextCheckKey) as? Date,
+           now() < nextCheck {
             return
         }
         await runCheck(isManual: false)
@@ -105,19 +106,31 @@ final class UpdateMonitor: ObservableObject {
     }
 
     private func runCheck(isManual: Bool) async {
-        guard !status.isChecking else { return }
+        guard !status.isChecking, !Task.isCancelled else { return }
         let previousStatus = status
         status = .checking
         userDefaults.set(now(), forKey: lastAttemptKey)
 
         do {
-            let result = try await checkRelease(installedVersion)
+            let response = try await checkRelease(installedVersion)
             guard !Task.isCancelled else {
                 status = previousStatus
                 return
             }
 
-            switch result {
+            // The Latest redirect can lag behind the API during publication. Do not
+            // let that older snapshot erase an update we have already discovered.
+            if response.source == .manifest, let known = availableUpdate,
+               manifestIsOlder(response.result, than: known) {
+                status = .available(known)
+                userDefaults.set(now().addingTimeInterval(failedCheckInterval), forKey: nextCheckKey)
+                return
+            }
+
+            userDefaults.set(now(), forKey: lastSuccessKey)
+            userDefaults.set(now().addingTimeInterval(automaticCheckInterval), forKey: nextCheckKey)
+
+            switch response.result {
             case .upToDate:
                 availableUpdate = nil
                 status = .upToDate
@@ -136,19 +149,33 @@ final class UpdateMonitor: ObservableObject {
                 clearCachedUpdate()
             }
         } catch {
-            guard !Task.isCancelled else {
+            guard !Task.isCancelled, !(error is CancellationError),
+                  (error as? URLError)?.code != .cancelled else {
                 status = previousStatus
                 return
             }
+            userDefaults.set(now().addingTimeInterval(failedCheckInterval), forKey: nextCheckKey)
             if isManual {
                 if case UpdateCheckError.invalidInstalledVersion = error {
                     status = .failed(L.tr("无法比较当前版本，请从正式安装的应用中检查。"))
                 } else {
-                    status = .failed(L.tr("检查失败，请确认网络连接后重试。"))
+                    status = .failed(L.tr("暂时无法检查更新，请稍后重试。"))
                 }
+            } else if let update = availableUpdate {
+                status = .available(update)
             } else {
-                status = previousStatus
+                status = .failed(L.tr("暂时无法检查更新，请稍后重试。"))
             }
+        }
+    }
+
+    private func manifestIsOlder(_ result: UpdateCheckResult, than known: AvailableUpdate) -> Bool {
+        switch result {
+        case .upToDate, .noDownload:
+            return true
+        case let .available(update):
+            guard let received = AppVersion(update.version), let cached = AppVersion(known.version) else { return false }
+            return received < cached
         }
     }
 

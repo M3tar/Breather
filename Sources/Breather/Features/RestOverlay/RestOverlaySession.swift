@@ -16,6 +16,8 @@ final class RestOverlaySession: ObservableObject {
     let kind: Kind
     let contentMode: RestOverlayContentMode
     let curtainPalette: CurtainPalette
+    let cloudTrainPlaybackSpeed: CloudTrainPlaybackSpeed
+    let cloudTrainForegroundSpeed: CloudTrainForegroundSpeed
     let background: RestOverlayBackground
     let translucent: Bool
     let fadeAnimation: Bool
@@ -44,6 +46,8 @@ final class RestOverlaySession: ObservableObject {
         self.kind = kind
         contentMode = settings.restOverlayContentMode
         curtainPalette = settings.curtainPalette
+        cloudTrainPlaybackSpeed = settings.cloudTrainPlaybackSpeed
+        cloudTrainForegroundSpeed = settings.cloudTrainForegroundSpeed
         background = contentMode == .classic ? settings.restOverlayBackground : .solid
         translucent = contentMode == .classic && settings.restOverlayTranslucentBackground
         fadeAnimation = settings.restOverlayFadeAnimation

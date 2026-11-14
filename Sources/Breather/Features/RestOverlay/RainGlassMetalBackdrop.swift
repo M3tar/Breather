@@ -153,9 +153,14 @@ private struct RainGlassMetalSurface: NSViewRepresentable {
     }
 }
 
-final class RainGlassMetalView: MTKView {
+final class RainGlassMetalView: MTKView, MetalViewSnapshotProviding {
     private var rainRenderer: RainGlassRenderer?
     var isRendererReady: Bool { rainRenderer != nil }
+
+    func captureMetalImage() async throws -> MetalViewSnapshot.Frame {
+        guard let rainRenderer else { throw MetalViewSnapshot.Failure.unavailable }
+        return try await rainRenderer.snapshot(size: drawableSize)
+    }
 
     init(animated: Bool) {
         let device = MTLCreateSystemDefaultDevice()
@@ -239,11 +244,25 @@ private final class RainGlassRenderer: NSObject, MTKViewDelegate {
             return
         }
 
+        encode(encoder, size: view.drawableSize)
+        encoder.endEncoding()
+        commandBuffer.present(drawable)
+        commandBuffer.commit()
+    }
+
+
+    @MainActor func snapshot(size: CGSize) async throws -> MetalViewSnapshot.Frame {
+        try await MetalViewSnapshot.capture(queue: commandQueue, size: size, pixelFormat: .bgra8Unorm_srgb) { encoder in
+            self.encode(encoder, size: size)
+        }
+    }
+
+    private func encode(_ encoder: MTLRenderCommandEncoder, size: CGSize) {
         let time = isAnimated
             ? Float(CACurrentMediaTime() - startedAt)
             : RainGlassRendering.stillFrameTime
         var uniforms = Uniforms(
-            resolution: SIMD2(Float(view.drawableSize.width), Float(view.drawableSize.height)),
+            resolution: SIMD2(Float(size.width), Float(size.height)),
             time: time,
             intensity: 1
         )
@@ -252,9 +271,6 @@ private final class RainGlassRenderer: NSObject, MTKViewDelegate {
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<Uniforms>.stride, index: 0)
         encoder.setFragmentTexture(background, index: 0)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
-        encoder.endEncoding()
-        commandBuffer.present(drawable)
-        commandBuffer.commit()
     }
 
     fileprivate static let shaderSource = #"""

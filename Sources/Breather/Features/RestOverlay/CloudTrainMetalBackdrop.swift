@@ -3,9 +3,11 @@ import SwiftUI
 
 struct CloudTrainMetalBackdrop: View {
     let animated: Bool
+    var playbackSpeed: CloudTrainPlaybackSpeed = .half
+    var foregroundSpeed: CloudTrainForegroundSpeed = .threeQuarters
 
     var body: some View {
-        CloudTrainMetalSurface(animated: animated)
+        CloudTrainMetalSurface(animated: animated, playbackSpeed: playbackSpeed, foregroundSpeed: foregroundSpeed)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .ignoresSafeArea()
             .allowsHitTesting(false)
@@ -14,21 +16,30 @@ struct CloudTrainMetalBackdrop: View {
 
 private struct CloudTrainMetalSurface: NSViewRepresentable {
     let animated: Bool
+    let playbackSpeed: CloudTrainPlaybackSpeed
+    let foregroundSpeed: CloudTrainForegroundSpeed
 
     func makeNSView(context: Context) -> CloudTrainMetalView {
-        CloudTrainMetalView(animated: animated)
+        CloudTrainMetalView(animated: animated, playbackSpeed: playbackSpeed, foregroundSpeed: foregroundSpeed)
     }
 
     func updateNSView(_ view: CloudTrainMetalView, context: Context) {
+        view.setSpeeds(playback: playbackSpeed, foreground: foregroundSpeed)
         view.setAnimated(animated)
     }
 }
 
-final class CloudTrainMetalView: MTKView {
+final class CloudTrainMetalView: MTKView, MetalViewSnapshotProviding {
     private var trainRenderer: CloudTrainRenderer?
     var isRendererReady: Bool { trainRenderer != nil }
 
-    init(animated: Bool) {
+    func captureMetalImage() async throws -> MetalViewSnapshot.Frame {
+        guard let trainRenderer else { throw MetalViewSnapshot.Failure.unavailable }
+        return try await trainRenderer.snapshot(size: drawableSize)
+    }
+
+    init(animated: Bool, playbackSpeed: CloudTrainPlaybackSpeed = .half,
+         foregroundSpeed: CloudTrainForegroundSpeed = .threeQuarters) {
         let device = MTLCreateSystemDefaultDevice()
         super.init(frame: .zero, device: device)
 
@@ -42,6 +53,7 @@ final class CloudTrainMetalView: MTKView {
             trainRenderer = renderer
             delegate = renderer
         }
+        setSpeeds(playback: playbackSpeed, foreground: foregroundSpeed)
         setAnimated(animated)
     }
 
@@ -67,21 +79,61 @@ final class CloudTrainMetalView: MTKView {
         trainRenderer?.setAnimated(animated)
         if !animated { setNeedsDisplay(bounds) }
     }
+
+    func setSpeeds(playback: CloudTrainPlaybackSpeed, foreground: CloudTrainForegroundSpeed) {
+        trainRenderer?.setSpeeds(playback: playback, foreground: foreground)
+    }
+}
+
+/// Scene time stays continuous when a settings thumbnail changes speed or pauses.
+struct CloudTrainAnimationClock {
+    private var rate: Double = 1
+    private var anchor: TimeInterval?
+    private var elapsed: TimeInterval
+
+    init(initialTime: TimeInterval = 7.25) { elapsed = initialTime }
+    private var hasStarted = false
+
+    func time(at now: TimeInterval) -> TimeInterval {
+        elapsed + (anchor.map { max(0, now - $0) * rate } ?? 0)
+    }
+
+    mutating func setSpeed(_ speed: CloudTrainPlaybackSpeed, at now: TimeInterval) {
+        setRate(speed.multiplier, at: now)
+    }
+
+    mutating func setRate(_ rate: Double, at now: TimeInterval) {
+        guard self.rate != rate else { return }
+        elapsed = time(at: now)
+        if anchor != nil { anchor = now }
+        self.rate = rate
+    }
+
+    mutating func setAnimated(_ animated: Bool, at now: TimeInterval) {
+        guard animated != (anchor != nil) else { return }
+        if animated {
+            if !hasStarted { elapsed = 0 }
+            hasStarted = true
+            anchor = now
+        } else {
+            elapsed = time(at: now)
+            anchor = nil
+        }
+    }
 }
 
 private final class CloudTrainRenderer: NSObject, MTKViewDelegate {
     private struct Uniforms {
         var resolution: SIMD2<Float>
         var time: Float
+        var foregroundTime: Float
     }
 
     private let commandQueue: MTLCommandQueue
     private let pipeline: MTLRenderPipelineState
     private let blueNoise: MTLTexture
-    private var startedAt = CACurrentMediaTime()
-    private var frozenTime: Float = 7.25
-    private var hasStarted = false
-    private var isAnimated = false
+    private var clock = CloudTrainAnimationClock()
+    private var foregroundClock = CloudTrainAnimationClock(initialTime: 7.25 * CloudTrainForegroundSpeed.threeQuarters.multiplier)
 
     init?(device: MTLDevice, pixelFormat: MTLPixelFormat) {
         #if SWIFT_PACKAGE
@@ -117,15 +169,15 @@ private final class CloudTrainRenderer: NSObject, MTKViewDelegate {
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
 
     func setAnimated(_ animated: Bool) {
-        guard isAnimated != animated else { return }
         let now = CACurrentMediaTime()
-        if animated {
-            startedAt = now - Double(hasStarted ? frozenTime : 0)
-            hasStarted = true
-        } else {
-            frozenTime = Float(now - startedAt)
-        }
-        isAnimated = animated
+        clock.setAnimated(animated, at: now)
+        foregroundClock.setAnimated(animated, at: now)
+    }
+
+    func setSpeeds(playback: CloudTrainPlaybackSpeed, foreground: CloudTrainForegroundSpeed) {
+        let now = CACurrentMediaTime()
+        clock.setSpeed(playback, at: now)
+        foregroundClock.setRate(playback.multiplier * foreground.multiplier, at: now)
     }
 
     func draw(in view: MTKView) {
@@ -135,17 +187,30 @@ private final class CloudTrainRenderer: NSObject, MTKViewDelegate {
               let commandBuffer = commandQueue.makeCommandBuffer(),
               let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else { return }
 
+        encode(encoder, size: view.drawableSize)
+        encoder.endEncoding()
+        commandBuffer.present(drawable)
+        commandBuffer.commit()
+    }
+
+
+    @MainActor func snapshot(size: CGSize) async throws -> MetalViewSnapshot.Frame {
+        try await MetalViewSnapshot.capture(queue: commandQueue, size: size, pixelFormat: .bgra8Unorm) { encoder in
+            self.encode(encoder, size: size)
+        }
+    }
+
+    private func encode(_ encoder: MTLRenderCommandEncoder, size: CGSize) {
+        let now = CACurrentMediaTime()
         var uniforms = Uniforms(
-            resolution: SIMD2(Float(view.drawableSize.width), Float(view.drawableSize.height)),
-            time: isAnimated ? Float(CACurrentMediaTime() - startedAt) : frozenTime
+            resolution: SIMD2(Float(size.width), Float(size.height)),
+            time: Float(clock.time(at: now)),
+            foregroundTime: Float(foregroundClock.time(at: now))
         )
         encoder.setRenderPipelineState(pipeline)
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<Uniforms>.stride, index: 0)
         encoder.setFragmentTexture(blueNoise, index: 0)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
-        encoder.endEncoding()
-        commandBuffer.present(drawable)
-        commandBuffer.commit()
     }
 
     // Adapted from "Up in the Cloud Sea" by mdb:
@@ -165,6 +230,7 @@ private final class CloudTrainRenderer: NSObject, MTKViewDelegate {
     struct CloudTrainUniforms {
         float2 resolution;
         float time;
+        float foregroundTime;
     };
 
     vertex CloudTrainRasterData cloudTrainVertex(uint vertexID [[vertex_id]]) {
@@ -398,7 +464,7 @@ private final class CloudTrainRenderer: NSObject, MTKViewDelegate {
         return float4(0.58, 0.7, 1.0, 1.);
     }
 
-    float4 trainScene(float2 fragCoord, float2 iResolution, float iTime, texture2d<float> blueNoise)
+    float4 trainScene(float2 fragCoord, float2 iResolution, float iTime, float foregroundTime, texture2d<float> blueNoise)
     {
         float2 uv = fragCoord/iResolution.y;
         //uv.x += iTime;
@@ -409,7 +475,7 @@ private final class CloudTrainRenderer: NSObject, MTKViewDelegate {
         int n = 5;
         if (uv.y < 0.5)
         for (int i = 0; i < n; i++){
-            fg += foreground(uv, t+4.*float(i)/float(n)/60., blueNoise) / (float(n));
+            fg += foreground(uv, foregroundTime*4.0+4.*float(i)/float(n)/60., blueNoise) / (float(n));
         }
 
         float3 col = bg.rgb;
@@ -508,7 +574,7 @@ private final class CloudTrainRenderer: NSObject, MTKViewDelegate {
                                         constant CloudTrainUniforms &uniforms [[buffer(0)]],
                                         texture2d<float> blueNoise [[texture(0)]]) {
         float2 fragCoord = in.uv * uniforms.resolution;
-        float3 col = trainScene(fragCoord, uniforms.resolution, uniforms.time, blueNoise).rgb;
+        float3 col = trainScene(fragCoord, uniforms.resolution, uniforms.time, uniforms.foregroundTime, blueNoise).rgb;
         float2 uv = fragCoord / uniforms.resolution;
         float vignette = 0.5 + 0.5 * pow(max(0.0, 16.0 * uv.x * uv.y
                                                  * (1.0 - uv.x) * (1.0 - uv.y)), 0.2);

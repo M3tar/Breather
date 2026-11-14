@@ -64,7 +64,9 @@ struct RestOverlayShell: View {
                 if let atmosphere {
                     AtmosphericRestBackdrop(
                         atmosphere: atmosphere,
-                        animated: session.fadeAnimation && !reduceMotion && !session.isAnimationPaused
+                        animated: session.fadeAnimation && !reduceMotion && !session.isAnimationPaused,
+                        cloudTrainPlaybackSpeed: session.cloudTrainPlaybackSpeed,
+                        cloudTrainForegroundSpeed: session.cloudTrainForegroundSpeed
                     )
                 }
 

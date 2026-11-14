@@ -81,9 +81,14 @@ private struct SnowfallMetalSurface: NSViewRepresentable {
     }
 }
 
-final class SnowfallMetalView: MTKView {
+final class SnowfallMetalView: MTKView, MetalViewSnapshotProviding {
     private var snowfallRenderer: SnowfallRenderer?
     var isRendererReady: Bool { snowfallRenderer != nil }
+
+    func captureMetalImage() async throws -> MetalViewSnapshot.Frame {
+        guard let snowfallRenderer else { throw MetalViewSnapshot.Failure.unavailable }
+        return try await snowfallRenderer.snapshot(size: drawableSize)
+    }
 
     init(animated: Bool) {
         let device = MTLCreateSystemDefaultDevice()
@@ -175,16 +180,27 @@ private final class SnowfallRenderer: NSObject, MTKViewDelegate {
               let drawable = view.currentDrawable,
               let commandBuffer = commandQueue.makeCommandBuffer(),
               let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else { return }
+        encode(encoder, size: view.drawableSize)
+        encoder.endEncoding()
+        commandBuffer.present(drawable)
+        commandBuffer.commit()
+    }
+
+
+    @MainActor func snapshot(size: CGSize) async throws -> MetalViewSnapshot.Frame {
+        try await MetalViewSnapshot.capture(queue: commandQueue, size: size, pixelFormat: .bgra8Unorm) { encoder in
+            self.encode(encoder, size: size)
+        }
+    }
+
+    private func encode(_ encoder: MTLRenderCommandEncoder, size: CGSize) {
         var uniforms = Uniforms(
-            resolution: SIMD2(Float(view.drawableSize.width), Float(view.drawableSize.height)),
+            resolution: SIMD2(Float(size.width), Float(size.height)),
             time: isAnimated ? Float(CACurrentMediaTime() - startedAt) : frozenTime
         )
         encoder.setRenderPipelineState(pipeline)
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<Uniforms>.stride, index: 0)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
-        encoder.endEncoding()
-        commandBuffer.present(drawable)
-        commandBuffer.commit()
     }
 
     // Metal port of "Just snow" by Andrew Baldwin / baldand (2013).

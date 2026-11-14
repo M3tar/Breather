@@ -54,6 +54,8 @@ enum RestAtmosphere: CaseIterable {
 struct AtmosphericRestBackdrop: View {
     let atmosphere: RestAtmosphere
     let animated: Bool
+    var cloudTrainPlaybackSpeed: CloudTrainPlaybackSpeed = .half
+    var cloudTrainForegroundSpeed: CloudTrainForegroundSpeed = .threeQuarters
 
     @ViewBuilder
     var body: some View {
@@ -62,7 +64,9 @@ struct AtmosphericRestBackdrop: View {
             AtmosphericRestFrame(
                 atmosphere: atmosphere,
                 time: 0,
-                animated: animated
+                animated: animated,
+                cloudTrainPlaybackSpeed: cloudTrainPlaybackSpeed,
+                cloudTrainForegroundSpeed: cloudTrainForegroundSpeed
             )
             .ignoresSafeArea()
             .allowsHitTesting(false)
@@ -101,6 +105,8 @@ private struct AtmosphericRestFrame: View {
     let atmosphere: RestAtmosphere
     let time: TimeInterval
     let animated: Bool
+    var cloudTrainPlaybackSpeed: CloudTrainPlaybackSpeed = .half
+    var cloudTrainForegroundSpeed: CloudTrainForegroundSpeed = .threeQuarters
 
     var body: some View {
         GeometryReader { proxy in
@@ -122,7 +128,8 @@ private struct AtmosphericRestFrame: View {
                         SnowyAtmosphere(time: time)
                     }
                 case .cloudTrain:
-                    CloudTrainMetalBackdrop(animated: animated)
+                    CloudTrainMetalBackdrop(animated: animated, playbackSpeed: cloudTrainPlaybackSpeed,
+                                           foregroundSpeed: cloudTrainForegroundSpeed)
                 }
                 focusField(size: proxy.size)
             }
