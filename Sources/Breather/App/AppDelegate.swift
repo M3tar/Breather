@@ -10,6 +10,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let computerActivityMonitor = ComputerActivityMonitor()
     private var cancellables: Set<AnyCancellable> = []
 
+    let installedReleaseNotice = InstalledReleaseNotice(
+        hasPreviousUse: SettingsStore.hasSavedPreferences() || UpdateMonitor.hasAttemptedCheck()
+            || UserDefaults.standard.string(forKey: AppLanguage.preferenceKey) != nil
+    )
+    let restHistory = RestHistory()
     let settingsStore = SettingsStore()
     let notificationService = NotificationService()
     let updateMonitor = UpdateMonitor()
@@ -32,6 +37,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             notificationService: notificationService,
             idleMonitor: idleMonitor
         )
+
+        scheduler.onResult = { [restHistory] event in
+            restHistory.refresh(at: Date())
+            restHistory.record(event)
+        }
+        scheduler.onClockTick = { [restHistory] in restHistory.refresh(at: $0) }
 
         restOverlayController = RestOverlayWindowController(
             scheduler: scheduler,

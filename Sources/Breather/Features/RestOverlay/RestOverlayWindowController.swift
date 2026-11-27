@@ -43,6 +43,7 @@ final class RestOverlayWindowController {
     private(set) var keyboardScreenID: UInt32?
     private var keyMonitor: Any?
     private var previewTask: Task<Void, Never>?
+    private var entranceTasks: [UInt32: Task<Void, Never>] = [:]
     private var cancellables: Set<AnyCancellable> = []
     let availability: RestOverlayAvailability
 
@@ -172,6 +173,7 @@ final class RestOverlayWindowController {
         let connected = screens()
         let ids = Set(connected.map(\.id))
         for id in Array(windows.keys) where !ids.contains(id) {
+            entranceTasks.removeValue(forKey: id)?.cancel()
             if let window = windows.removeValue(forKey: id) { close([window]) }
         }
         if !ids.contains(keyboardScreenID ?? UInt32.max) {
@@ -196,6 +198,10 @@ final class RestOverlayWindowController {
                     settingsStore: scheduler.settingsStore, session: session,
                     onSnooze: { [weak self] in self?.snoozeFromOverlay(id: session.id) },
                     onSkip: { [weak self] in self?.skipFromOverlay(id: session.id) },
+                    onRecent: { [weak self, id = scheduler.restSessionID] in
+                        guard let self, let id, self.session?.id == session.id else { return }
+                        self.scheduler.confirmRecentRest(id)
+                    },
                     onClose: { [weak self] in self?.closePresentation(id: session.id) }
                 ))
                 panel.setFrame(screen.frame, display: true)
@@ -205,10 +211,7 @@ final class RestOverlayWindowController {
                     panel.alphaValue = animated ? 0 : 1
                     panel.orderFrontRegardless()
                     if animated {
-                        NSAnimationContext.runAnimationGroup { context in
-                            context.duration = 0.55
-                            panel.animator().alphaValue = 1
-                        }
+                        prepareEntrance(panel, screenID: screen.id, session: session)
                     }
                 }
             }
@@ -218,12 +221,64 @@ final class RestOverlayWindowController {
         }
     }
 
+    private func prepareEntrance(_ panel: NSPanel, screenID: UInt32, session: RestOverlaySession) {
+        // Materialize the hosting tree before spending any of the visible fade.
+        panel.contentView?.layoutSubtreeIfNeeded()
+        panel.contentView?.displayIfNeeded()
+        guard session.contentMode == .snowy,
+              let snow = snowfallView(in: panel.contentView), snow.isRendererReady,
+              !snow.hasRenderedFirstFrame else {
+            startEntrance(panel, sessionID: session.id, screenID: screenID)
+            return
+        }
+
+        // GPU completion, rather than a fixed delay, releases the entrance. The
+        // deadline keeps the static background usable if no drawable arrives.
+        entranceTasks[screenID] = Task { @MainActor [weak self, weak panel] in
+            do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
+            guard let self, let panel else { return }
+            self.finishEntrancePreparation(panel, sessionID: session.id, screenID: screenID)
+        }
+        snow.onFirstFrameRendered = { [weak self, weak panel] in
+            guard let self, let panel else { return }
+            self.finishEntrancePreparation(panel, sessionID: session.id, screenID: screenID)
+        }
+        snow.draw()
+    }
+
+    private func finishEntrancePreparation(_ panel: NSPanel, sessionID: UUID, screenID: UInt32) {
+        guard session?.id == sessionID, windows[screenID] === panel,
+              let task = entranceTasks.removeValue(forKey: screenID) else { return }
+        task.cancel()
+        snowfallView(in: panel.contentView)?.onFirstFrameRendered = nil
+        startEntrance(panel, sessionID: sessionID, screenID: screenID)
+    }
+
+    private func startEntrance(_ panel: NSPanel, sessionID: UUID, screenID: UInt32) {
+        guard session?.id == sessionID, session?.isDismissing == false,
+              windows[screenID] === panel else { return }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.55
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            panel.animator().alphaValue = 1
+        }
+        recordDiagnostic("entranceStarted")
+    }
+
+    private func snowfallView(in view: NSView?) -> SnowfallMetalView? {
+        guard let view else { return nil }
+        if let snow = view as? SnowfallMetalView { return snow }
+        return view.subviews.lazy.compactMap { self.snowfallView(in: $0) }.first
+    }
+
     private func hide(animated: Bool) {
         ambientSoundService.stop()
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
         keyMonitor = nil
         previewTask?.cancel()
         previewTask = nil
+        entranceTasks.values.forEach { $0.cancel() }
+        entranceTasks.removeAll()
         let closingWindows = Array(windows.values)
         windows.removeAll()
         keyboardScreenID = nil
@@ -277,6 +332,7 @@ final class RestOverlayWindowController {
 
     private func close(_ panels: [NSPanel], diagnosticSession: RestOverlaySession? = nil) {
         panels.forEach {
+            snowfallView(in: $0.contentView)?.onFirstFrameRendered = nil
             $0.orderOut(nil)
             $0.contentView = nil
             $0.close()
@@ -329,13 +385,14 @@ struct RestOverlayScreenView: View {
     @ObservedObject var session: RestOverlaySession
     let onSnooze: () -> Void
     let onSkip: () -> Void
+    let onRecent: () -> Void
     let onClose: () -> Void
 
     var body: some View {
         Group {
             if session.kind == .rest {
                 RestOverlayView(settingsStore: settingsStore, session: session,
-                                onSnooze: onSnooze, onSkip: onSkip)
+                                onSnooze: onSnooze, onSkip: onSkip, onRecent: onRecent)
             } else {
                 RestOverlayPreviewView(session: session,
                                        onClose: onClose)

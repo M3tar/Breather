@@ -2,7 +2,7 @@ import SwiftUI
 
 enum RestOverlayActions {
     case rest(snoozeDuration: TimeInterval, canSnooze: Bool, canSkip: Bool,
-              onSnooze: () -> Void, onSkip: () -> Void)
+              onSnooze: () -> Void, onSkip: () -> Void, onRecent: () -> Void)
     case preview(onClose: () -> Void)
 }
 
@@ -33,11 +33,15 @@ struct RestOverlayShell: View {
 
     private var atmosphericDismissal: Bool {
         (atmosphere != nil || session.background == .sun)
-            && session.isDismissing && !reduceMotion
+            && session.isDismissing && animatesTransitions
     }
 
-    private var animatesCurtain: Bool {
+    private var animatesTransitions: Bool {
         session.fadeAnimation && !reduceMotion
+    }
+
+    private var animatesScene: Bool {
+        !reduceMotion && !session.isAnimationPaused && !session.isDismissing
     }
 
     private var curtainColors: CurtainColors {
@@ -50,13 +54,13 @@ struct RestOverlayShell: View {
             ZStack {
                 background
                     .opacity(atmosphericDismissal ? 0.34 : 1)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: session.isDismissing)
+                    .animation(animatesTransitions ? .easeInOut(duration: 0.22) : nil, value: session.isDismissing)
 
                 if session.contentMode == .curtain {
                     CurtainBackdrop(
                         palette: session.curtainPalette,
                         phase: curtainPhase,
-                        animated: animatesCurtain
+                        animated: animatesTransitions
                             && (!session.isAnimationPaused || session.isDismissing)
                     )
                 }
@@ -64,7 +68,7 @@ struct RestOverlayShell: View {
                 if let atmosphere {
                     AtmosphericRestBackdrop(
                         atmosphere: atmosphere,
-                        animated: session.fadeAnimation && !reduceMotion && !session.isAnimationPaused,
+                        animated: animatesScene,
                         cloudTrainPlaybackSpeed: session.cloudTrainPlaybackSpeed,
                         cloudTrainForegroundSpeed: session.cloudTrainForegroundSpeed
                     )
@@ -97,14 +101,14 @@ struct RestOverlayShell: View {
                     .opacity(informationOpacity)
                     .scaleEffect(session.contentMode == .curtain && !curtainContentVisible ? 0.985 : 1)
                     .animation(informationAnimation, value: curtainContentVisible)
-                    .animation(reduceMotion ? nil : .easeOut(duration: 0.08), value: session.isDismissing)
+                    .animation(animatesTransitions ? .easeOut(duration: 0.08) : nil, value: session.isDismissing)
             }
         }
         .onPreferenceChange(RestInformationHeightKey.self) { informationHeight = $0 }
         .onAppear(perform: closeCurtain)
         .onChange(of: session.isDismissing) { _, dismissing in
             guard session.contentMode == .curtain, dismissing else { return }
-            if animatesCurtain {
+            if animatesTransitions {
                 withAnimation(.easeOut(duration: 0.14)) { curtainContentVisible = false }
                 curtainPhase = .opening
             } else {
@@ -121,7 +125,7 @@ struct RestOverlayShell: View {
     }
 
     private var informationAnimation: Animation? {
-        guard animatesCurtain else { return nil }
+        guard animatesTransitions else { return nil }
         return curtainContentVisible
             ? .easeOut(duration: 0.38)
             : .easeOut(duration: 0.14)
@@ -129,7 +133,7 @@ struct RestOverlayShell: View {
 
     private func closeCurtain() {
         guard session.contentMode == .curtain else { return }
-        guard animatesCurtain else {
+        guard animatesTransitions else {
             curtainPhase = .closed
             curtainContentVisible = true
             return
@@ -202,13 +206,14 @@ struct RestOverlayShell: View {
             Button(L.tr("关闭预览"), action: onClose)
                 .buttonStyle(RestOverlayActionButtonStyle(style: style))
                 .padding(.top, 10)
-        case let .rest(duration, canSnooze, canSkip, onSnooze, onSkip):
+        case let .rest(duration, canSnooze, canSkip, onSnooze, onSkip, onRecent):
             if canSnooze || canSkip {
                 HStack(spacing: 24) {
                     if canSnooze {
                         Button(L.tr("延后 \(Self.formattedDuration(duration))"), action: onSnooze)
                     }
                     if canSkip {
+                        Button(L.tr("我刚休息过"), action: onRecent)
                         Button(L.tr("跳过"), action: onSkip)
                     }
                 }

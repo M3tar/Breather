@@ -84,6 +84,16 @@ private struct SnowfallMetalSurface: NSViewRepresentable {
 final class SnowfallMetalView: MTKView, MetalViewSnapshotProviding {
     private var snowfallRenderer: SnowfallRenderer?
     var isRendererReady: Bool { snowfallRenderer != nil }
+    private(set) var hasRenderedFirstFrame = false
+    var onFirstFrameRendered: (() -> Void)?
+
+    fileprivate func didRenderFirstFrame() {
+        guard !hasRenderedFirstFrame else { return }
+        hasRenderedFirstFrame = true
+        let callback = onFirstFrameRendered
+        onFirstFrameRendered = nil
+        callback?()
+    }
 
     func captureMetalImage() async throws -> MetalViewSnapshot.Frame {
         guard let snowfallRenderer else { throw MetalViewSnapshot.Failure.unavailable }
@@ -144,6 +154,7 @@ private final class SnowfallRenderer: NSObject, MTKViewDelegate {
     private var frozenTime = SnowfallRendering.stillFrameTime
     private var hasStarted = false
     private var isAnimated = false
+    private var firstFrameSubmitted = false
 
     init?(device: MTLDevice, pixelFormat: MTLPixelFormat) {
         guard let queue = device.makeCommandQueue(),
@@ -183,6 +194,15 @@ private final class SnowfallRenderer: NSObject, MTKViewDelegate {
         encode(encoder, size: view.drawableSize)
         encoder.endEncoding()
         commandBuffer.present(drawable)
+        if !firstFrameSubmitted {
+            firstFrameSubmitted = true
+            commandBuffer.addCompletedHandler { [weak view] buffer in
+                guard buffer.status == .completed else { return }
+                Task { @MainActor [weak view] in
+                    (view as? SnowfallMetalView)?.didRenderFirstFrame()
+                }
+            }
+        }
         commandBuffer.commit()
     }
 

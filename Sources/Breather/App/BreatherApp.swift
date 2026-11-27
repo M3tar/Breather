@@ -29,6 +29,7 @@ struct BreatherApp: App {
                 settingsStore: appDelegate.settingsStore,
                 updateMonitor: appDelegate.updateMonitor,
                 diagnostics: appDelegate.diagnostics,
+                installedReleaseNotice: appDelegate.installedReleaseNotice,
                 notificationService: appDelegate.notificationService,
                 restSoundService: appDelegate.restSoundService,
                 restOverlayAvailability: appDelegate.restOverlayAvailability,
@@ -39,6 +40,7 @@ struct BreatherApp: App {
                     appDelegate.previewRestOverlay()
                 }
             )
+            .environmentObject(appDelegate.restHistory)
             .onAppear {
                 appDelegate.settingsWindowDidAppear()
             }

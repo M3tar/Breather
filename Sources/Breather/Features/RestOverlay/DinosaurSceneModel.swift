@@ -25,24 +25,12 @@ struct DinosaurSceneModel {
 
     init(seed: UInt64) { self.seed = seed }
 
-    /// Finish only the jump already in progress, then park the scene. The caller
-    /// chooses when to wind down from the authoritative remaining break time.
-    func finishTime(after elapsed: Double) -> Double {
-        for crossing in crossings(through: elapsed + Self.jumpDuration / 2) {
-            if elapsed >= crossing.time - Self.jumpDuration / 2,
-               elapsed < crossing.time + Self.jumpDuration / 2 {
-                return crossing.time + Self.jumpDuration / 2
-            }
-        }
-        return elapsed
-    }
-
-    func frame(elapsed: Double, stopAt: Double? = nil, animated: Bool) -> Frame {
+    func frame(elapsed: Double, animated: Bool) -> Frame {
         guard animated else {
             return Frame(pose: .standing, jumpHeight: 0, groundOffset: 0,
                          obstacles: [Obstacle(x: 294, height: 20, width: 9)])
         }
-        let time = max(0, min(elapsed, stopAt ?? elapsed))
+        let time = max(0, elapsed)
         var obstacles: [Obstacle] = []
         var jumpHeight = 0.0
         // Enumerate only potential crossings up to the visible horizon. Deterministic
@@ -61,9 +49,7 @@ struct DinosaurSceneModel {
                 jumpHeight = 46 * sin(.pi * phase)
             }
         }
-        let standing = stopAt.map { elapsed >= $0 } ?? false
         let pose: Pose = jumpHeight > 0 ? .jumping
-            : standing ? .standing
             : Int(time / Self.strideDuration).isMultiple(of: 2) ? .walkA : .walkB
         return Frame(pose: pose, jumpHeight: jumpHeight,
                      groundOffset: (time * Self.speed).truncatingRemainder(dividingBy: 448),

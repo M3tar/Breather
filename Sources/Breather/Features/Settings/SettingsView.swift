@@ -6,6 +6,7 @@ struct SettingsView: View {
     @ObservedObject private var localizationRefresh = LocalizationRefresh.shared
     @ObservedObject var updateMonitor: UpdateMonitor
     var diagnostics: DiagnosticsController? = nil
+    var installedReleaseNotice: InstalledReleaseNotice? = nil
     let notificationService: any NotificationSettingsServicing
     let restSoundService: RestSoundService
     var restOverlayAvailability = RestOverlayAvailability()
@@ -23,6 +24,7 @@ struct SettingsView: View {
             SettingsSidebar(
                 selectedSection: $selectedSection,
                 hasAvailableUpdate: updateMonitor.availableUpdate != nil,
+                installedReleaseNotice: installedReleaseNotice,
                 onQuit: { NSApp.terminate(nil) }
             )
             .navigationSplitViewColumnWidth(min: 150, ideal: 170, max: 200)
@@ -32,7 +34,7 @@ struct SettingsView: View {
                 SettingsResetTransitionContent(transition: resetTransition, store: settingsStore) {
                     selectedScreen
                 }
-            case .general, .about:
+            case .general, .about, .history:
                 selectedScreen
             }
         }
@@ -107,6 +109,8 @@ struct SettingsView: View {
                 availability: restOverlayAvailability,
                 onPreviewRestOverlay: onPreviewRestOverlay
             )
+        case .history:
+            RestHistoryScreen()
         case .about:
             AboutSettingsScreen(updateMonitor: updateMonitor, diagnostics: diagnostics)
         }
@@ -131,6 +135,7 @@ struct SettingsSidebar: View {
     @Binding var selectedSection: SettingsSectionID
     @ObservedObject private var localizationRefresh = LocalizationRefresh.shared
     let hasAvailableUpdate: Bool
+    var installedReleaseNotice: InstalledReleaseNotice? = nil
     let onQuit: () -> Void
 
     var body: some View {
@@ -161,6 +166,12 @@ struct SettingsSidebar: View {
             .listStyle(.sidebar)
             .accessibilityLabel(L.tr("设置分类"))
 
+            if let installedReleaseNotice, let notes = installedReleaseNotice.pendingNotes {
+                SettingsReleaseNotesCard(notes: notes, onDismiss: installedReleaseNotice.dismiss)
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 4)
+            }
+
             HStack {
                 Button(action: onQuit) {
                     Image(systemName: "power")
@@ -186,6 +197,7 @@ enum SettingsSectionID: String, CaseIterable, Identifiable, Hashable {
     case schedule
     case menuBar
     case restOverlay
+    case history
     case general
     case about
 
@@ -197,6 +209,7 @@ enum SettingsSectionID: String, CaseIterable, Identifiable, Hashable {
         case .schedule: L.tr("计划")
         case .menuBar: L.tr("菜单栏")
         case .restOverlay: L.tr("休息界面")
+        case .history: L.tr("休息记录")
         case .about: L.tr("关于")
         }
     }
@@ -207,6 +220,7 @@ enum SettingsSectionID: String, CaseIterable, Identifiable, Hashable {
         case .schedule: "timer"
         case .menuBar: "menubar.rectangle"
         case .restOverlay: "rectangle.inset.filled"
+        case .history: "calendar"
         case .about: "info.circle"
         }
     }

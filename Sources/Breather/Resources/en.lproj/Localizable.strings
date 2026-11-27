@@ -41,6 +41,14 @@
 "关于" = "About";
 "关于，有新版本可用" = "About, update available";
 "关闭预览" = "Close preview";
+"已更新到 %@" = "Updated to %@";
+"关闭本版更新提示" = "Dismiss update summary";
+"自动计为休息精确到秒" = "Set the automatic break threshold in seconds";
+"按页恢复默认设置" = "Reset settings by page";
+"可导出运行日志" = "Export runtime logs";
+"查看近 30 天的休息记录" = "View your last 30 days of breaks";
+"提醒时可选「我刚休息过」" = "Choose “I just took a break”";
+"修复雨滴和小恐龙动画提前停止的问题" = "Fixed rain and dinosaur animations stopping early";
 "准备喘口气，看看远处。" = "Take a breath and look away from the screen.";
 "分钟" = "min";
 "分钟.countdown" = "Minutes";
@@ -337,3 +345,31 @@
 "本周期：短休息 %@。\n锁屏、睡眠或无操作达到 %@，即视为完成休息。" = "This session: short breaks last %@.\nBeing locked, asleep or inactive for %@ counts as a completed break.";
 
 "半透明" = "Translucent";
+
+"休息记录" = "Break history";
+"日期范围" = "Date range";
+"最近 7 天" = "Last 7 days";
+"最近 30 天" = "Last 30 days";
+"完成 / 跳过（次）" = "Completed / skipped (count)";
+"休息.restHistory" = "Breaks taken";
+"跳过.restHistory" = "Skipped";
+"短休息计时结束" = "Break timer finished";
+"我刚休息过" = "I just took a break";
+"今天还没有休息记录" = "No breaks recorded yet today";
+"当天没有休息记录" = "No breaks recorded that day";
+"今天也有好好休息，太厉害了吧！" = "You made time for breaks today. Way to go!";
+"那天也有好好休息，太厉害了吧！" = "You made time for breaks that day. Way to go!";
+"今天居然一次没漏全打卡，太厉害了吧！" = "You didn't miss a single reminder today—so impressive!";
+"那天居然一次没漏全打卡，太厉害了吧！" = "You didn't miss a single reminder that day—so impressive!";
+"忙归忙，今天也记得多起来透透气，继续保持！" = "Busy day, yet you still took breaks to get some fresh air. Keep it up!";
+"那天再忙也没一直粘在椅子上，必须点赞！" = "Even on a busy day, you didn't stay glued to your chair. Props to you!";
+"今天坐得有点久啦，快起来溜达两步吧！" = "You've been sitting a while—time to take a quick stroll!";
+"那天一定忙飞了吧！下次记得起来溜达两步！" = "Must've been crazy busy! Remember to take a quick stroll next time!";
+"暂时无法读写休息记录" = "Break history is temporarily unavailable";
+"重试" = "Retry";
+"零跳过" = "Zero skips";
+"全部跳过" = "All skipped";
+"休息 1 次" = "1 break taken";
+"休息 %ld 次" = "%ld breaks taken";
+"跳过 %ld 次" = "%ld skipped";
+"（次）" = "(count)";

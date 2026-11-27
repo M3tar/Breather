@@ -214,7 +214,7 @@ final class RestOverlayTests: XCTestCase {
         let width = 192
         let height = 192
         let early = try XCTUnwrap(RainGlassRendering.motionMask(width: width, height: height, time: 8))
-        let later = try XCTUnwrap(RainGlassRendering.motionMask(width: width, height: height, time: 9))
+        let later = try XCTUnwrap(RainGlassRendering.motionMask(width: width, height: height, time: 8.12))
 
         func similarity(at verticalShift: Int) -> Double {
             var sum = 0.0
@@ -309,10 +309,10 @@ final class RestOverlayTests: XCTestCase {
                              "The actual Metal snowfield must fall toward the bottom of the screen")
     }
 
-    func testRainEntryAndLoopFramesStayVisible() throws {
+    func testRainFramesStayVisibleThroughoutLongBreaks() throws {
         let width = 160
         let height = 90
-        for time: Float in [0, 99, 101.9, 102] {
+        for time: Float in [0, 70, 80, 99, 101.9, 102, 600] {
             let pixels = try XCTUnwrap(RainGlassRendering.renderedPixels(
                 width: width, height: height, time: time
             ))
@@ -320,6 +320,74 @@ final class RestOverlayTests: XCTestCase {
             let brightness = Int(pixels[center]) + Int(pixels[center + 1]) + Int(pixels[center + 2])
             XCTAssertGreaterThan(brightness, 24,
                                  "The rain glass must remain visible at time \(time)")
+        }
+    }
+
+    func testRainDropsKeepMovingThroughLongBreaks() throws {
+        for time: Float in [28, 70, 80, 100, 101.9, 102, 599] {
+            let early = try XCTUnwrap(RainGlassRendering.motionMask(width: 192, height: 192, time: time))
+            let later = try XCTUnwrap(RainGlassRendering.motionMask(width: 192, height: 192, time: time + 0.12))
+            XCTAssertTrue(early != later, "Production rain droplets freeze at \(time)s")
+        }
+    }
+
+    func testRainDoesNotRestartAtTheOldLoopBoundary() throws {
+        let early = try XCTUnwrap(RainGlassRendering.motionMask(width: 192, height: 192, time: 101.999))
+        let later = try XCTUnwrap(RainGlassRendering.motionMask(width: 192, height: 192, time: 102.001))
+        let total = zip(early, later).enumerated().reduce(0) { sum, pixel in
+            sum + (pixel.offset.isMultiple(of: 4) ? abs(Int(pixel.element.0) - Int(pixel.element.1)) : 0)
+        }
+        let meanDifference = Double(total) / Double(192 * 192)
+        XCTAssertLessThan(meanDifference, 2, "Crossing 102s must not replace the rain field with its first frame")
+    }
+
+    func testTransitionSwitchDoesNotStopAtmospherePlayers() throws {
+        try XCTSkipIf(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+                      "Animated surface checks require system Reduce Motion to be off")
+        for mode in [RestOverlayContentMode.windowLeaves, .sunny, .rainy, .snowy, .cloudTrain] {
+            for fade in [false, true] {
+                var now = 0.0
+                var settings = AppSettings()
+                settings.restOverlayContentMode = mode
+                settings.restOverlayFadeAnimation = fade
+                let session = RestOverlaySession(kind: .preview, settings: settings, totalSeconds: 30, uptime: { now })
+                let host = NSHostingView(rootView: RestOverlayPreviewView(session: session, onClose: {})
+                    .frame(width: 640, height: 360))
+                host.frame = NSRect(x: 0, y: 0, width: 640, height: 360)
+                host.layoutSubtreeIfNeeded()
+                RunLoop.main.run(until: Date().addingTimeInterval(0.08))
+                for elapsed in [0.0, 28, 29] {
+                    now = elapsed
+                    session.updatePreview()
+                    host.layoutSubtreeIfNeeded()
+                    RunLoop.main.run(until: Date().addingTimeInterval(0.08))
+                    if mode == .sunny || mode == .windowLeaves {
+                        let player = (findAVPlayerSurface(in: host)?.layer as? AVPlayerLayer)?.player
+                        XCTAssertNotNil(player, "Scene video missing for \(mode), transition=\(fade)")
+                        XCTAssertEqual(player?.rate, 1, "Scene video paused with \(session.remainingSeconds)s left")
+                    } else {
+                        let surface = try XCTUnwrap(findAtmosphereMetalSurface(in: host))
+                        XCTAssertFalse(surface.isPaused, "Scene paused for \(mode), transition=\(fade)")
+                    }
+                }
+                session.setAnimationPaused(true)
+                host.layoutSubtreeIfNeeded()
+                RunLoop.main.run(until: Date().addingTimeInterval(0.08))
+                if let surface = findAtmosphereMetalSurface(in: host) {
+                    XCTAssertTrue(surface.isPaused)
+                } else {
+                    XCTAssertNil(findAVPlayerSurface(in: host))
+                }
+                session.setAnimationPaused(false)
+                session.beginDismissal()
+                host.layoutSubtreeIfNeeded()
+                RunLoop.main.run(until: Date().addingTimeInterval(0.08))
+                if let surface = findAtmosphereMetalSurface(in: host) {
+                    XCTAssertTrue(surface.isPaused)
+                } else {
+                    XCTAssertNil(findAVPlayerSurface(in: host))
+                }
+            }
         }
     }
 
@@ -489,23 +557,90 @@ final class RestOverlayTests: XCTestCase {
         XCTAssertEqual(session.animationElapsed, 5)
     }
 
+    func testDinosaurKeepsMovingThroughFinalSecondsUntilDismissal() {
+        var settings = AppSettings()
+        settings.restOverlayContentMode = .dinosaur
+        for kind in [RestOverlaySession.Kind.rest, .preview] {
+            for duration in [10, 30, 60, 600] {
+                // At 28s, seed 1 is walking and seed 42 is mid-jump.
+                for seed: UInt64 in [1, 42] {
+                    var now = 0.0
+                    let session = RestOverlaySession(
+                        kind: kind, settings: settings, totalSeconds: duration,
+                        seed: seed, uptime: { now }
+                    )
+                    var previous: DinosaurSceneModel.Frame?
+                    for step in 0..<30 {
+                        now = Double(duration) - 3 + Double(step) / 10
+                        if kind == .preview {
+                            session.updatePreview()
+                        } else {
+                            session.updateRemaining(Int(ceil(Double(duration) - now)))
+                        }
+                        let frame = session.scene.frame(
+                            elapsed: session.animationElapsed, animated: true
+                        )
+                        XCTAssertFalse(session.isDismissing)
+                        XCTAssertGreaterThan(session.remainingSeconds, 0)
+                        XCTAssertNotEqual(frame.pose, .standing, "Stopped at \(now)s of \(duration)s")
+                        if let previous {
+                            XCTAssertNotEqual(frame.groundOffset, previous.groundOffset,
+                                              "Frozen at \(now)s of \(duration)s")
+                        }
+                        previous = frame
+                    }
+                    now = Double(duration)
+                    if kind == .preview {
+                        session.updatePreview()
+                    } else {
+                        session.updateRemaining(0)
+                    }
+                    XCTAssertEqual(session.remainingSeconds, 0)
+                    session.beginDismissal()
+                    let stoppedElapsed = session.animationElapsed
+                    now += 10
+                    XCTAssertEqual(session.animationElapsed, stoppedElapsed)
+                    XCTAssertFalse(DinosaurRestContentView.animationEnabled(
+                        reduceMotion: false, compact: false,
+                        isPaused: session.isAnimationPaused, isDismissing: session.isDismissing
+                    ))
+                }
+            }
+        }
+    }
+
+    func testDinosaurWithOneSecondRemainingStillMoves() {
+        var now = 0.0
+        var settings = AppSettings()
+        settings.restOverlayContentMode = .dinosaur
+        let session = RestOverlaySession(
+            kind: .rest, settings: settings, totalSeconds: 30,
+            remainingSeconds: 1, seed: 1, uptime: { now }
+        )
+        let before = session.scene.frame(elapsed: session.animationElapsed, animated: true)
+        now = 0.1
+        session.updateRemaining(1)
+        let after = session.scene.frame(elapsed: session.animationElapsed, animated: true)
+        XCTAssertNotEqual(after.pose, .standing)
+        XCTAssertNotEqual(before.groundOffset, after.groundOffset)
+    }
+
     func testDurationDoesNotStretchStrideOrJumpAndEveryVisibleCrossingClearsCactus() {
         let model = DinosaurSceneModel(seed: 42)
         for duration in [10.0, 30, 60, 600] {
-            let stop = model.finishTime(after: duration - min(2, duration * 0.1))
-            let peak = model.frame(elapsed: 4, stopAt: stop, animated: true)
+            let peak = model.frame(elapsed: 4, animated: true)
             XCTAssertEqual(peak.pose, .jumping)
             XCTAssertEqual(peak.jumpHeight, 46, accuracy: 0.001)
-            let stride = model.frame(elapsed: 1, stopAt: stop, animated: true)
+            let stride = model.frame(elapsed: 1, animated: true)
             XCTAssertEqual(stride.pose, .walkA)
             for elapsed in Swift.stride(from: 0.0, through: duration, by: 1.0 / 60) {
-                let frame = model.frame(elapsed: elapsed, stopAt: stop, animated: true)
+                let frame = model.frame(elapsed: elapsed, animated: true)
                 for obstacle in frame.obstacles where obstacle.x < DinosaurSceneModel.dinosaurX + DinosaurSceneModel.dinosaurWidth
                     && obstacle.x + obstacle.width > DinosaurSceneModel.dinosaurX {
                     XCTAssertGreaterThan(frame.jumpHeight, obstacle.height, "Collision at \(elapsed)s of \(duration)s")
                 }
             }
-            XCTAssertEqual(model.frame(elapsed: duration, stopAt: stop, animated: true).pose, .standing)
+            XCTAssertNotEqual(model.frame(elapsed: duration, animated: true).pose, .standing)
         }
         let a = model.frame(elapsed: 1, animated: false)
         let b = model.frame(elapsed: 999, animated: false)
@@ -514,50 +649,53 @@ final class RestOverlayTests: XCTestCase {
         XCTAssertEqual(a.groundOffset, b.groundOffset)
     }
 
-    func testDelayedSchedulerDoesNotStopAnimationBeforeActualWindDown() {
+    func testDelayedSchedulerKeepsDinosaurMovingUntilDismissal() {
         var now = 0.0
-        let session = RestOverlaySession(kind: .rest, settings: AppSettings(), totalSeconds: 30, seed: 42, uptime: { now })
-        now = 29
-        session.updateRemaining(10)
-        XCTAssertNil(session.sceneStopTime)
-        let before = session.scene.frame(elapsed: now, stopAt: session.sceneStopTime, animated: true)
-        now = 30
-        session.updateRemaining(9)
-        let after = session.scene.frame(elapsed: now, stopAt: session.sceneStopTime, animated: true)
-        XCTAssertNotEqual(before.groundOffset, after.groundOffset)
-        now = 37
-        session.updateRemaining(2)
-        let stop = session.sceneStopTime
-        XCTAssertNotNil(stop)
-        XCTAssertGreaterThanOrEqual(stop ?? 0, now)
-        now = 39
-        session.updateRemaining(0)
-        XCTAssertEqual(session.sceneStopTime, stop)
-        XCTAssertTrue(session.hasSceneStopped)
-        XCTAssertEqual(session.scene.frame(elapsed: now, stopAt: stop, animated: true).pose, .standing)
+        var settings = AppSettings()
+        settings.restOverlayContentMode = .dinosaur
+        let session = RestOverlaySession(kind: .rest, settings: settings, totalSeconds: 30, seed: 42, uptime: { now })
+        var previous: DinosaurSceneModel.Frame?
+        // Animation time can pass the planned duration while the scheduler still has time remaining.
+        for (elapsed, remaining) in [(29.0, 10), (30, 9), (37, 2), (38, 1), (39, 0)] {
+            now = elapsed
+            session.updateRemaining(remaining)
+            let frame = session.scene.frame(elapsed: session.animationElapsed, animated: true)
+            XCTAssertEqual(session.remainingSeconds, remaining)
+            XCTAssertNotEqual(frame.pose, .standing)
+            if let previous { XCTAssertNotEqual(frame.groundOffset, previous.groundOffset) }
+            previous = frame
+        }
+        session.beginDismissal()
+        now = 45
+        XCTAssertEqual(session.animationElapsed, 39)
     }
 
-    func testWindDownFinishesCurrentJumpWithoutRemovingVisibleObstacles() {
-        let model = DinosaurSceneModel(seed: 42)
-        for elapsed in [3.0, 3.6, 4, 4.4, 4.5] {
-            let stop = model.finishTime(after: elapsed)
-            XCTAssertLessThanOrEqual(stop - elapsed, DinosaurSceneModel.jumpDuration)
-            let before = model.frame(elapsed: elapsed, animated: true)
-            let after = model.frame(elapsed: elapsed, stopAt: stop, animated: true)
-            XCTAssertEqual(before.obstacles, after.obstacles)
-            XCTAssertEqual(before.jumpHeight, after.jumpHeight)
-            let parked = model.frame(elapsed: stop + 1, stopAt: stop, animated: true)
-            XCTAssertEqual(parked.pose, .standing)
-            XCTAssertEqual(parked.jumpHeight, 0)
-            XCTAssertEqual(parked.obstacles, model.frame(elapsed: stop + 5, stopAt: stop, animated: true).obstacles)
-        }
-        let restored = RestOverlaySession(kind: .rest, settings: AppSettings(), totalSeconds: 30, remainingSeconds: 1)
-        XCTAssertTrue(restored.hasSceneStopped)
+    func testDinosaurDismissalStopsImmediatelyDuringJump() {
+        var now = 0.0
+        var settings = AppSettings()
+        settings.restOverlayContentMode = .dinosaur
+        let session = RestOverlaySession(kind: .rest, settings: settings, totalSeconds: 30, seed: 42, uptime: { now })
+        now = 4
+        session.updateRemaining(0)
+        let before = session.scene.frame(elapsed: session.animationElapsed, animated: true)
+        XCTAssertEqual(before.pose, .jumping)
+        XCTAssertEqual(before.jumpHeight, 46, accuracy: 0.001)
+        session.beginDismissal()
+        XCTAssertTrue(session.isDismissing)
+        XCTAssertTrue(session.isAnimationPaused)
+        now = 5
+        let after = session.scene.frame(elapsed: session.animationElapsed, animated: true)
+        XCTAssertEqual(session.animationElapsed, 4)
+        XCTAssertEqual(session.remainingSeconds, 0)
+        XCTAssertEqual(after.jumpHeight, before.jumpHeight)
+        XCTAssertEqual(after.groundOffset, before.groundOffset)
+        XCTAssertEqual(after.obstacles, before.obstacles)
     }
 
     func testPreviewClosesAutomaticallyWithoutChangingScheduler() async throws {
         let fixture = try Fixture()
         defer { fixture.cleanUp() }
+        fixture.store.settings.restOverlayContentMode = .dinosaur
         fixture.store.rules.shortBreakDuration = 1
         let remaining = fixture.scheduler.remainingSeconds
         fixture.controller.preview()
@@ -572,6 +710,94 @@ final class RestOverlayTests: XCTestCase {
         XCTAssertEqual(fixture.scheduler.remainingSeconds, remaining)
         XCTAssertEqual(fixture.scheduler.state, .working)
         XCTAssertEqual(fixture.scheduler.consecutiveMissedBreaks, 0)
+    }
+
+    func testSnowEntranceWaitsForRenderedFrameWithoutDeferringRestCountdown() async throws {
+        let fixture = try Fixture(presentsWindows: true)
+        defer { fixture.cleanUp() }
+        fixture.screens = [RestOverlayScreen(id: 1, frame: CGRect(x: 0, y: 0, width: 800, height: 600))]
+        fixture.store.settings.restOverlayContentMode = .snowy
+        fixture.store.settings.restOverlayFadeAnimation = true
+        fixture.store.activateSavedRulesForCurrentCycle()
+        var readyAt: TimeInterval?
+        var hadRenderedFrame = false
+        fixture.controller.onDiagnosticChange = { [weak fixture] reason, _ in
+            guard reason == "entranceStarted", let fixture else { return }
+            readyAt = CACurrentMediaTime()
+            hadRenderedFrame = fixture.controller.windows[1]?.contentView.flatMap(self.findSnowfallSurface)?.hasRenderedFirstFrame == true
+        }
+        fixture.scheduler.startRestNow()
+        let panel = try XCTUnwrap(fixture.controller.windows[1])
+        fixture.clock.now.addTimeInterval(1)
+        fixture.scheduler.tick()
+        XCTAssertEqual(fixture.controller.session?.remainingSeconds, 29)
+        for _ in 0..<100 where readyAt == nil { try await Task.sleep(for: .milliseconds(10)) }
+        let started = try XCTUnwrap(readyAt)
+        XCTAssertTrue(hadRenderedFrame, "The real GPU frame must be ready when the visible fade starts")
+        try await Task.sleep(for: .milliseconds(220))
+        let elapsed = CACurrentMediaTime() - started
+        XCTAssertLessThan(elapsed, 0.4)
+        XCTAssertGreaterThan(panel.alphaValue, 0.05)
+        XCTAssertLessThan(panel.alphaValue, 0.85, "The entrance should retain a visible middle phase")
+        try await Task.sleep(for: .milliseconds(400))
+        XCTAssertEqual(panel.alphaValue, 1, accuracy: 0.01)
+    }
+
+    func testSnowEntranceCancellationCannotReviveReplacedPreview() async throws {
+        let fixture = try Fixture(presentsWindows: true)
+        defer { fixture.cleanUp() }
+        fixture.screens = [RestOverlayScreen(id: 1, frame: CGRect(x: 0, y: 0, width: 800, height: 600))]
+        fixture.store.settings.restOverlayContentMode = .snowy
+        fixture.store.settings.restOverlayFadeAnimation = true
+        fixture.controller.preview()
+        let first = try XCTUnwrap(fixture.controller.session)
+        let oldPanel = try XCTUnwrap(fixture.controller.windows[1])
+        XCTAssertTrue(fixture.controller.handleEscape(id: first.id))
+        XCTAssertNil(fixture.controller.session)
+        fixture.controller.preview()
+        let replacement = try XCTUnwrap(fixture.controller.session)
+        let newPanel = try XCTUnwrap(fixture.controller.windows[1])
+        XCTAssertNotEqual(first.id, replacement.id)
+        XCTAssertFalse(oldPanel === newPanel)
+        try await Task.sleep(for: .milliseconds(850))
+        XCTAssertNil(oldPanel.contentView)
+        XCTAssertFalse(oldPanel.isVisible)
+        XCTAssertEqual(fixture.controller.session?.id, replacement.id)
+        XCTAssertEqual(newPanel.alphaValue, 1, accuracy: 0.01)
+
+        // Also interrupt while the visible fade is in progress.
+        fixture.controller.preview()
+        let third = try XCTUnwrap(fixture.controller.session)
+        let thirdPanel = try XCTUnwrap(fixture.controller.windows[1])
+        try await Task.sleep(for: .milliseconds(180))
+        XCTAssertTrue(fixture.controller.handleEscape(id: third.id))
+        try await Task.sleep(for: .milliseconds(650))
+        XCTAssertNil(fixture.controller.session)
+        XCTAssertFalse(thirdPanel.isVisible)
+        XCTAssertNil(thirdPanel.contentView)
+    }
+
+    func testSnowEntranceBypassesFadeWhenDisabledOrMotionIsReduced() async throws {
+        for (fade, reducedMotion) in [(false, false), (true, true)] {
+            let fixture = try Fixture(reduceMotion: reducedMotion, presentsWindows: true)
+            defer { fixture.cleanUp() }
+            fixture.screens = [RestOverlayScreen(id: 1, frame: CGRect(x: 0, y: 0, width: 800, height: 600))]
+            fixture.store.settings.restOverlayContentMode = .snowy
+            fixture.store.settings.restOverlayFadeAnimation = fade
+            var entranceCount = 0
+            fixture.controller.onDiagnosticChange = { reason, _ in
+                if reason == "entranceStarted" { entranceCount += 1 }
+            }
+            fixture.controller.preview()
+            let panel = try XCTUnwrap(fixture.controller.windows[1])
+            XCTAssertEqual(panel.alphaValue, 1)
+            try await Task.sleep(for: .milliseconds(300))
+            XCTAssertEqual(entranceCount, 0)
+            XCTAssertEqual(panel.alphaValue, 1)
+            if !reducedMotion {
+                XCTAssertFalse(try XCTUnwrap(panel.contentView.flatMap(findSnowfallSurface)).isPaused)
+            }
+        }
     }
 
     func testPreviewIsIsolatedAndStaleCloseCannotDismissRealRest() async throws {
@@ -603,6 +829,7 @@ final class RestOverlayTests: XCTestCase {
     func testCompletionFreezesZeroAndLivePermissionsGuardOverlayActions() throws {
         let fixture = try Fixture()
         defer { fixture.cleanUp() }
+        fixture.store.settings.restOverlayContentMode = .dinosaur
         fixture.store.rules.shortBreakDuration = 10
         fixture.scheduler.applyCurrentRulesToCurrentCycle()
         fixture.scheduler.startRestNow()
@@ -628,6 +855,41 @@ final class RestOverlayTests: XCTestCase {
         XCTAssertEqual(fixture.scheduler.state, .snoozing)
         XCTAssertNil(fixture.controller.session)
         XCTAssertEqual(second.remainingSeconds, 10)
+    }
+
+    func testAllThemesFinishWithEitherTransitionSettingAndReducedMotion() throws {
+        for mode in RestOverlayContentMode.allCases {
+            for fade in [false, true] {
+                for reduceMotion in [false, true] {
+                    let fixture = try Fixture(reduceMotion: reduceMotion)
+                    defer { fixture.cleanUp() }
+                    fixture.store.settings.restOverlayContentMode = mode
+                    fixture.store.settings.restOverlayFadeAnimation = fade
+                    fixture.store.rules.shortBreakDuration = 30
+                    fixture.store.activateSavedRulesForCurrentCycle()
+                    fixture.scheduler.startRestNow()
+                    let session = try XCTUnwrap(fixture.controller.session)
+                    for step in 1...30 {
+                        fixture.clock.now.addTimeInterval(1)
+                        if step == 1 && mode == .curtain && fade && !reduceMotion {
+                            fixture.clock.now.addTimeInterval(CurtainTiming.closingDuration)
+                        }
+                        fixture.scheduler.tick()
+                        if step < 30 {
+                            XCTAssertEqual(session.remainingSeconds, 30 - step)
+                            XCTAssertEqual(fixture.controller.session?.id, session.id)
+                            XCTAssertFalse(session.isDismissing)
+                        }
+                    }
+                    XCTAssertEqual(session.remainingSeconds, 0)
+                    XCTAssertTrue(session.isDismissing)
+                    XCTAssertTrue(session.isAnimationPaused)
+                    XCTAssertNil(fixture.controller.session)
+                    XCTAssertTrue(fixture.controller.windows.isEmpty)
+                    XCTAssertEqual(fixture.scheduler.state, .working)
+                }
+            }
+        }
     }
 
     func testScreenChangesKeepOneSessionAndReassignOnlyMissingKeyboardScreen() throws {
@@ -714,6 +976,30 @@ final class RestOverlayTests: XCTestCase {
         XCTAssertEqual(fixture.controller.session?.contentMode, .classic)
     }
 
+    func testManualResultClosesBothReminderPanels() async throws {
+        let fixture = try Fixture()
+        defer { fixture.cleanUp() }
+        fixture.store.settings.restOverlayContentMode = .classic
+        fixture.store.settings.restOverlayFadeAnimation = false
+        fixture.store.settings.allowSkip = true
+        var results: [RestEvent] = []
+        fixture.scheduler.onResult = { results.append($0) }
+        fixture.scheduler.startRestNow()
+        XCTAssertEqual(fixture.controller.windows.count, 2)
+        let panel = try XCTUnwrap(fixture.controller.windows[1])
+        let view = try XCTUnwrap(panel.contentView)
+        if ProcessInfo.processInfo.environment["BREATHER_HISTORY_EVIDENCE"] != nil {
+            panel.orderFront(nil)
+            try await Task.sleep(for: .milliseconds(400))
+            try captureHistoryWindow(view, named: "fullscreen")
+        }
+        let id = try XCTUnwrap(fixture.scheduler.restSessionID)
+        fixture.scheduler.confirmRecentRest(id)
+        fixture.scheduler.confirmRecentRest(id)
+        XCTAssertEqual(results.map(\.source), [.manual])
+        XCTAssertTrue(fixture.controller.windows.isEmpty)
+    }
+
     func testEscapeRespectsLivePermissionsAndPreviewAlwaysCloses() throws {
         let fixture = try Fixture()
         defer { fixture.cleanUp() }
@@ -764,7 +1050,7 @@ final class RestOverlayTests: XCTestCase {
                 let session = RestOverlaySession(kind: .rest, settings: settings, totalSeconds: 60, remainingSeconds: 24)
                 session.setAnimationPaused(true)
                 let view = RestOverlayShell(session: session,
-                                            actions: .rest(snoozeDuration: 180, canSnooze: true, canSkip: true, onSnooze: {}, onSkip: {}))
+                                            actions: .rest(snoozeDuration: 180, canSnooze: true, canSkip: true, onSnooze: {}, onSkip: {}, onRecent: {}))
                     .environment(\.colorScheme, dark ? .dark : .light)
                     .frame(width: width, height: height)
                 try render(view, to: directory.appendingPathComponent("dinosaur-\(name)-\(dark ? "dark" : "light").png"))
@@ -845,7 +1131,7 @@ final class RestOverlayTests: XCTestCase {
             LocalizationRefresh.shared.refresh()
             let view = RestOverlayShell(session: session, actions: .rest(
                 snoozeDuration: 180, canSnooze: true, canSkip: true,
-                onSnooze: {}, onSkip: {}
+                onSnooze: {}, onSkip: {}, onRecent: {}
             ))
             .frame(width: 800, height: 600)
             try render(view, to: directory.appendingPathComponent("localized-\(language.rawValue).png"))
@@ -1109,6 +1395,11 @@ final class RestOverlayTests: XCTestCase {
         return view.subviews.lazy.compactMap(findMetalSurface).first
     }
 
+    private func findAtmosphereMetalSurface(in view: NSView) -> MTKView? {
+        if let metalView = view as? MTKView { return metalView }
+        return view.subviews.lazy.compactMap(findAtmosphereMetalSurface).first
+    }
+
     private func findCloudTrainSurface(in view: NSView) -> CloudTrainMetalView? {
         if let metalView = view as? CloudTrainMetalView { return metalView }
         return view.subviews.lazy.compactMap(findCloudTrainSurface).first
@@ -1164,7 +1455,7 @@ private final class Fixture {
     var screens = [RestOverlayScreen(id: 1, frame: CGRect(x: 0, y: 0, width: 1440, height: 900)),
                    RestOverlayScreen(id: 2, frame: CGRect(x: 1440, y: 0, width: 800, height: 600))]
 
-    init() throws {
+    init(reduceMotion: Bool = false, presentsWindows: Bool = false) throws {
         defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         store = SettingsStore(userDefaults: defaults)
         scheduler = BreakScheduler(settingsStore: store, notificationService: RestTestNotification(), idleMonitor: RestTestIdle(),
@@ -1175,8 +1466,8 @@ private final class Fixture {
                                                 onSkip: { [weak scheduler] in scheduler?.skipBreak() },
                                                 screens: { [weak self] in self?.screens ?? [] },
                                                 mouseLocation: { CGPoint(x: 1500, y: 300) },
-                                                reduceMotion: { false },
-                                                presentsWindows: false,
+                                                reduceMotion: { reduceMotion },
+                                                presentsWindows: presentsWindows,
                                                 ambientSoundService: ambientSound)
         scheduler.onRestStarted = { [weak controller] in controller?.show() }
         scheduler.onRestEnded = { [weak controller] in controller?.hideRest() }

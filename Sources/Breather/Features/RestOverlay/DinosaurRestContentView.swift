@@ -43,7 +43,7 @@ struct DinosaurRestContentView: View {
 
     var body: some View {
         Group {
-            if animated && !session.hasSceneStopped {
+            if animated {
                 TimelineView(.animation(minimumInterval: 1.0 / 30)) { _ in
                     lane(animated: true)
                 }
@@ -57,8 +57,7 @@ struct DinosaurRestContentView: View {
 
     private func lane(animated: Bool) -> some View {
         let frame = session.scene.frame(
-            elapsed: session.animationElapsed,
-            stopAt: session.sceneStopTime, animated: animated
+            elapsed: session.animationElapsed, animated: animated
         )
         return DinosaurLane(frame: frame, palette: DinosaurPalette(dark: colorScheme == .dark), compact: compact)
     }

@@ -7,11 +7,11 @@ enum RainGlassRendering {
 
     #if DEBUG
     static func renderedPixels(width: Int, height: Int, time: Float,
-                               fragmentName: String = "rainGlassFragment") -> [UInt8]? {
+                               motionMask: Bool = false) -> [UInt8]? {
         guard let device = MTLCreateSystemDefaultDevice(),
               let library = try? device.makeLibrary(source: RainGlassRenderer.shaderSource, options: nil),
               let vertex = library.makeFunction(name: "rainGlassVertex"),
-              let fragment = library.makeFunction(name: fragmentName),
+              let fragment = library.makeFunction(name: "rainGlassFragment"),
               let queue = device.makeCommandQueue(),
               let background = RainGlassBackground.makeTexture(device: device, queue: queue)
         else { return nil }
@@ -37,7 +37,7 @@ enum RainGlassRendering {
         pass.colorAttachments[0].loadAction = .clear
         pass.colorAttachments[0].storeAction = .store
         guard let encoder = buffer.makeRenderCommandEncoder(descriptor: pass) else { return nil }
-        var uniforms = SIMD4<Float>(Float(width), Float(height), time, 1)
+        var uniforms = SIMD4<Float>(Float(width), Float(height), time, motionMask ? 1 : 0)
         encoder.setRenderPipelineState(pipeline)
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<SIMD4<Float>>.stride, index: 0)
         encoder.setFragmentTexture(background, index: 0)
@@ -55,7 +55,7 @@ enum RainGlassRendering {
 
     static func motionMask(width: Int, height: Int, time: Float) -> [UInt8]? {
         renderedPixels(width: width, height: height, time: time,
-                       fragmentName: "rainGlassMotionMask")
+                       motionMask: true)
     }
     #endif
 }
@@ -200,7 +200,7 @@ private final class RainGlassRenderer: NSObject, MTKViewDelegate {
     private struct Uniforms {
         var resolution: SIMD2<Float>
         var time: Float
-        var intensity: Float
+        var motionMask: Float = 0
     }
 
     private let commandQueue: MTLCommandQueue
@@ -263,8 +263,7 @@ private final class RainGlassRenderer: NSObject, MTKViewDelegate {
             : RainGlassRendering.stillFrameTime
         var uniforms = Uniforms(
             resolution: SIMD2(Float(size.width), Float(size.height)),
-            time: time,
-            intensity: 1
+            time: time
         )
 
         encoder.setRenderPipelineState(pipeline)
@@ -285,7 +284,7 @@ private final class RainGlassRenderer: NSObject, MTKViewDelegate {
     struct Uniforms {
         float2 resolution;
         float time;
-        float intensity;
+        float motionMask;
     };
 
     vertex RasterData rainGlassVertex(uint vertexID [[vertex_id]]) {
@@ -302,7 +301,8 @@ private final class RainGlassRenderer: NSObject, MTKViewDelegate {
     // ported from the GLSL supplied by the user. CC BY-NC-SA 3.0.
     // https://www.shadertoy.com/view/ltffzl
     // The original iChannel0 image was not supplied; the generated blue-gray
-    // mipmapped texture replaces only that input. Keep the equations aligned.
+    // mipmapped texture replaces that input. Retain the drop equations, but use
+    // continuous time instead of the original heart/reveal story during breaks.
     float S(float a, float b, float value) {
         return a < b ? smoothstep(a, b, value)
                      : 1.0 - smoothstep(b, a, value);
@@ -379,14 +379,6 @@ private final class RainGlassRenderer: NSObject, MTKViewDelegate {
         return float2(mask, max(large.y * layer0, small.y * layer1));
     }
 
-    fragment float4 rainGlassMotionMask(RasterData in [[stage_in]],
-                                        constant Uniforms &uniforms [[buffer(0)]]) {
-        float aspect = uniforms.resolution.x / max(uniforms.resolution.y, 1.0);
-        float2 pane = (in.uv - 0.5) * float2(aspect, 1.0);
-        float body = DropLayer2(pane, uniforms.time * 0.2).x;
-        return float4(body, body, body, 1.0);
-    }
-
     fragment float4 rainGlassFragment(RasterData in [[stage_in]],
                                       constant Uniforms &uniforms [[buffer(0)]],
                                       texture2d<float> background [[texture(0)]]) {
@@ -394,33 +386,21 @@ private final class RainGlassRenderer: NSObject, MTKViewDelegate {
         float2 uv = in.uv;
         float aspect = uniforms.resolution.x / max(uniforms.resolution.y, 1.0);
         float2 pane = (uv - 0.5) * float2(aspect, 1.0);
-        float T = fmod(uniforms.time, 102.0);
+        float T = max(0.0, uniforms.time);
         float clock = T * 0.2;
-        float amount = sin(T * 0.05) * 0.30 + 0.70;
+        float amount = 0.70;
         float maxBlur = mix(3.0, 6.0, amount);
         float minBlur = 2.0;
 
-        // HAS_HEART in the supplied original is enabled. Preserve its 102 s
-        // timeline, rain slowdown, zoom and heart-shaped rain distribution.
-        float story = S(0.0, 70.0, T);
-        float progress = min(1.0, T / 70.0);
-        progress = 1.0 - progress;
-        clock = (1.0 - progress * progress) * 70.0;
-        float zoom = mix(0.3, 1.2, story);
-        pane *= zoom;
-        minBlur = 4.0 + S(0.5, 1.0, story) * 3.0;
-        maxBlur = 6.0 + S(0.5, 1.0, story) * 1.5;
-        float2 heartUV = pane - float2(0.0, -0.1);
-        heartUV.x *= 0.5;
-        float heartScale = S(110.0, 70.0, T);
-        heartUV.y -= sqrt(abs(heartUV.x)) * 0.5 * heartScale;
-        float heart = length(heartUV);
-        heart = S(0.4 * heartScale, 0.2 * heartScale, heart) * heartScale;
-        amount = heart;
-        maxBlur -= heart;
-        pane *= 1.5;
-        clock *= 0.25;
-        uv = (uv - 0.5) * (0.9 + zoom * 0.1) + 0.5;
+        // Keep the opening composition stable: no zoom, wind-down or timeline reset.
+        pane *= 0.45;
+        uv = (uv - 0.5) * 0.93 + 0.5;
+
+        // Read the production geometry and clock, rather than a separate test animation.
+        if (uniforms.motionMask > 0.5) {
+            float body = DropLayer2(pane, clock).x;
+            return float4(body, body, body, 1.0);
+        }
 
         float staticLayer = S(-0.5, 1.0, amount) * 2.0;
         float largeLayer = S(0.25, 0.75, amount);
@@ -432,17 +412,15 @@ private final class RainGlassRenderer: NSObject, MTKViewDelegate {
         float above = Drops(pane + float2(0.0, epsilon), clock,
                             staticLayer, largeLayer, smallLayer).x;
         float2 normal = float2(right - drops.x, above - drops.x);
-        normal *= 1.0 - S(60.0, 85.0, T);
-        drops.y *= 1.0 - S(80.0, 100.0, T) * 0.8;
 
         float focus = mix(maxBlur - drops.y, minBlur, S(0.1, 0.2, drops.x));
-        float2 refractedUV = clamp(uv + normal * uniforms.intensity, 0.0, 1.0);
+        float2 refractedUV = clamp(uv + normal, 0.0, 1.0);
         constexpr sampler glassSampler(filter::linear, mip_filter::linear,
                                        address::clamp_to_edge);
         float3 color = background.sample(glassSampler, refractedUV,
                                          level(focus)).rgb;
         float shiftTime = (T + 3.0) * 0.5;
-        float coolShift = sin(shiftTime * 0.2) * 0.5 + 0.5 + story;
+        float coolShift = sin(shiftTime * 0.2) * 0.5 + 0.5;
         color *= mix(float3(1.0), float3(0.8, 0.9, 1.3), coolShift);
         // A rest screen is shown on demand, so the source video's full-frame
         // fade would present an opaque black first frame. Only the lightning
@@ -450,10 +428,9 @@ private final class RainGlassRenderer: NSObject, MTKViewDelegate {
         float lightningIntro = S(0.0, 10.0, T);
         float lightning = sin(shiftTime * sin(shiftTime * 10.0));
         lightning *= pow(max(0.0, sin(shiftTime + sin(shiftTime))), 10.0);
-        color *= 1.0 + lightning * lightningIntro * mix(1.0, 0.1, story * story);
+        color *= 1.0 + lightning * lightningIntro;
         float vignette = 1.0 - dot(uv - 0.5, uv - 0.5);
         color *= vignette;
-        color = mix(pow(color, float3(1.2)), color, heart);
         return float4(saturate(color), 1.0);
     }
     """#

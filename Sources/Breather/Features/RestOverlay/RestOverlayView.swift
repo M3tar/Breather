@@ -5,6 +5,7 @@ struct RestOverlayView: View {
     @ObservedObject var session: RestOverlaySession
     let onSnooze: () -> Void
     let onSkip: () -> Void
+    let onRecent: () -> Void
 
     var body: some View {
         let settings = settingsStore.settings
@@ -13,7 +14,7 @@ struct RestOverlayView: View {
             actions: .rest(snoozeDuration: settings.snoozeDuration,
                            canSnooze: !settings.strictMode,
                            canSkip: settings.allowSkip && !settings.strictMode,
-                           onSnooze: onSnooze, onSkip: onSkip)
+                           onSnooze: onSnooze, onSkip: onSkip, onRecent: onRecent)
         )
     }
 }

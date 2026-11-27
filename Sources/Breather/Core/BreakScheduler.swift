@@ -28,6 +28,13 @@ final class BreakScheduler: ObservableObject {
 
     let settingsStore: SettingsStore
 
+    private(set) var restSessionID: UUID?
+    var onResult: ((RestEvent) -> Void)?
+    var onClockTick: ((Date) -> Void)?
+    // Product candidate: the upper bound affects statistics only.
+    private static let automaticStatisticsLimit: TimeInterval = 2 * 60 * 60
+    private var idleRestStartedAt: Date?
+
     var onRestStarted: (() -> Void)?
     var onRestEnded: (() -> Void)?
     var onRestBegan: (() -> Void)?
@@ -261,7 +268,10 @@ final class BreakScheduler: ObservableObject {
         computerActivity = activity
 
         if !previous.canCountAsRest, activity.canCountAsRest {
-            automaticRestStartedAt = currentDate
+            let idle = idleMonitor.idleSeconds
+            let canIncludeIdle = settingsStore.currentAutomaticRestMode.includesIdle
+                && (state == .working || state == .notifying || state == .snoozing)
+            automaticRestStartedAt = idleRestStartedAt ?? (canIncludeIdle ? currentDate.addingTimeInterval(-idle) : currentDate)
         }
 
         if !previous.isUnavailable, activity.isUnavailable {
@@ -273,6 +283,12 @@ final class BreakScheduler: ObservableObject {
                settingsStore.currentAutomaticRestMode.isEnabled,
                currentDate.timeIntervalSince(startedAt) >= settingsStore.effectiveAutomaticRestThreshold {
                 consecutiveMissedBreaks = 0
+                if settingsStore.currentAutomaticRestMode.includesIdle, idleMonitor.idleSeconds >= 2 {
+                    idleRestStartedAt = startedAt
+                } else {
+                    recordAutomaticRest(from: startedAt, returning: currentDate)
+                    idleRestStartedAt = nil
+                }
                 prepareFreshWorkCycleAfterProtectedPause()
             }
             automaticRestStartedAt = nil
@@ -298,6 +314,8 @@ final class BreakScheduler: ObservableObject {
     }
 
     func resetWorkCycle() {
+        idleRestStartedAt = nil
+        restSessionID = nil
         let wasResting = state == .resting
         restCountdownStartsAt = nil
 
@@ -333,6 +351,8 @@ final class BreakScheduler: ObservableObject {
     func applyCurrentRulesToCurrentCycle() {
         settingsStore.activateSavedRulesForCurrentCycle()
         notificationSent = false
+        idleRestStartedAt = nil
+        if previousStateBeforePause == .idleRested { previousStateBeforePause = .working }
 
         if isDisplayMirroringPauseActive || isComputerUnavailable {
             previousStateBeforePause = .working
@@ -379,14 +399,34 @@ final class BreakScheduler: ObservableObject {
     func skipBreak() {
         let settings = settingsStore.settings
         guard state == .resting, settings.allowSkip, !settings.strictMode else { return }
-        consecutiveMissedBreaks += 1
+        settleReminder(.skipped)
+    }
+
+    func confirmRecentRest(_ sessionID: UUID) {
+        guard state == .resting, restSessionID == sessionID,
+              settingsStore.settings.allowSkip, !settingsStore.settings.strictMode else { return }
+        settleReminder(.manual)
+    }
+
+    private func settleReminder(_ source: RestSource) {
+        guard let id = restSessionID else { return }
+        restSessionID = nil
+        consecutiveMissedBreaks = source == .skipped ? consecutiveMissedBreaks + 1 : 0
+        onResult?(RestEvent(id: id, date: now(), source: source))
         resetWorkCycle()
+    }
+
+    private func recordAutomaticRest(from start: Date, returning end: Date) {
+        if end.timeIntervalSince(start) < Self.automaticStatisticsLimit {
+            onResult?(RestEvent(id: UUID(), date: end, source: .automatic))
+        }
     }
 
     func snoozeBreak() {
         let settings = settingsStore.settings
         guard state == .resting, !settings.strictMode else { return }
         consecutiveMissedBreaks += 1
+        restSessionID = nil
         state = .snoozing
         restCountdownStartsAt = nil
         remainingSeconds = Int(settings.snoozeDuration)
@@ -396,6 +436,7 @@ final class BreakScheduler: ObservableObject {
     }
 
     func tick() {
+        onClockTick?(now())
         diagnosticTickCount &+= 1
         diagnosticLastTick = ProcessInfo.processInfo.systemUptime
         let beforeRemaining = remainingSeconds
@@ -405,20 +446,21 @@ final class BreakScheduler: ObservableObject {
         if refreshPauseResumeSession() {
             return
         }
-        guard state != .paused else { return }
-
-        if state == .idleRested {
-            if idleMonitor.idleSeconds < 2 {
-                resetWorkCycle()
-            } else {
-                updateStatusText()
+        if let startedAt = idleRestStartedAt, !isComputerUnavailable {
+            let idle = idleMonitor.idleSeconds
+            if idle < 2 {
+                idleRestStartedAt = nil
+                recordAutomaticRest(from: startedAt, returning: now().addingTimeInterval(-idle))
+                prepareFreshWorkCycleAfterProtectedPause()
             }
             return
         }
+        guard state != .paused else { return }
 
         if settingsStore.currentAutomaticRestMode.includesIdle,
            idleMonitor.idleSeconds >= settingsStore.effectiveAutomaticRestThreshold,
            state == .working || state == .notifying || state == .snoozing {
+            idleRestStartedAt = now().addingTimeInterval(-idleMonitor.idleSeconds)
             state = .idleRested
             remainingSeconds = Int(settingsStore.currentCycleRules.workDuration)
             notificationSent = false
@@ -456,8 +498,7 @@ final class BreakScheduler: ObservableObject {
             case .working, .notifying:
                 beginRest()
             case .resting:
-                consecutiveMissedBreaks = 0
-                resetWorkCycle()
+                settleReminder(.countdown)
             case .snoozing:
                 beginRest()
             case .paused, .idleRested:
@@ -500,11 +541,12 @@ final class BreakScheduler: ObservableObject {
         settingsStore.activateSavedRulesForCurrentCycle()
         remainingSeconds = Int(settingsStore.currentCycleRules.workDuration)
         notificationSent = false
-        previousStateBeforePause = .working
+        restSessionID = nil
+        previousStateBeforePause = idleRestStartedAt == nil ? .working : .idleRested
         onRestEnded?()
 
         if pauseReasons.isEmpty {
-            state = .working
+            state = previousStateBeforePause
         } else {
             state = .paused
         }
@@ -552,6 +594,8 @@ final class BreakScheduler: ObservableObject {
     }
 
     private func beginRest() {
+        idleRestStartedAt = nil
+        restSessionID = UUID()
         state = .resting
         restCountdownStartsAt = nil
         remainingSeconds = Int(settingsStore.currentCycleRules.shortBreakDuration)

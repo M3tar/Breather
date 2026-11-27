@@ -5,6 +5,10 @@ struct AppVersion: Comparable {
     let numbers: [Int]
     let prerelease: [String]
 
+    static var installedString: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+    }
+
     init?(_ value: String) {
         let tag = value.hasPrefix("v") ? String(value.dropFirst()) : value
         guard let coreAndPrerelease = tag.split(separator: "+", maxSplits: 1).first else {

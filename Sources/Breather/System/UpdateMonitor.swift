@@ -37,7 +37,7 @@ final class UpdateMonitor: ObservableObject {
     private let checkRelease: @MainActor (String) async throws -> UpdateCheckResponse
     private var automaticTask: Task<Void, Never>?
 
-    private let lastAttemptKey = "breather.update.lastAttemptAt"
+    private static let lastAttemptKey = "breather.update.lastAttemptAt"
     private let nextCheckKey = "breather.update.nextCheckAt"
     private let lastSuccessKey = "breather.update.lastSuccessAt"
     private let failedCheckInterval: TimeInterval = 60 * 60
@@ -46,9 +46,13 @@ final class UpdateMonitor: ObservableObject {
     private let availableURLKey = "breather.update.availableURL"
     private let automaticCheckInterval: TimeInterval = 24 * 60 * 60
 
+    static func hasAttemptedCheck(in userDefaults: UserDefaults = .standard) -> Bool {
+        userDefaults.object(forKey: lastAttemptKey) is Date
+    }
+
     init(
         userDefaults: UserDefaults = .standard,
-        installedVersion: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
+        installedVersion: String = AppVersion.installedString,
         now: @escaping () -> Date = Date.init,
         checkRelease: (@MainActor (String) async throws -> UpdateCheckResponse)? = nil
     ) {
@@ -109,7 +113,7 @@ final class UpdateMonitor: ObservableObject {
         guard !status.isChecking, !Task.isCancelled else { return }
         let previousStatus = status
         status = .checking
-        userDefaults.set(now(), forKey: lastAttemptKey)
+        userDefaults.set(now(), forKey: Self.lastAttemptKey)
 
         do {
             let response = try await checkRelease(installedVersion)

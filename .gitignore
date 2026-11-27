@@ -5,3 +5,7 @@ DerivedData/
 dist/
 *.xcuserstate
 xcuserdata/
+
+# Local generated previews, media exports, and their caches.
+# Keep referenced documentation assets under planning/figures/ instead.
+/outputs/

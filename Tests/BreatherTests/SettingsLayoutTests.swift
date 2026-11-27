@@ -667,11 +667,23 @@ final class SettingsLayoutTests: XCTestCase {
         store.automaticRestSeconds = 120
         store.activateSavedRulesForCurrentCycle()
         var applications = 0
+        var pendingExpectation: XCTestExpectation?
+        func expectApplication(_ description: String, when edit: () -> Void) async {
+            let applied = expectation(description: description)
+            pendingExpectation = applied
+            defer { pendingExpectation = nil }
+            edit()
+            await fulfillment(of: [applied], timeout: 5)
+        }
         let host = NSHostingView(rootView: SettingsView(settingsStore: store,
             updateMonitor: UpdateMonitor(userDefaults: defaults, installedVersion: "0.5.0",
                 checkRelease: { _ in UpdateCheckResponse(.upToDate) }),
             notificationService: LayoutTestNotificationService(), restSoundService: RestSoundService(),
-            onApplyRulesToCurrentCycle: { applications += 1; store.activateSavedRulesForCurrentCycle() },
+            onApplyRulesToCurrentCycle: {
+                applications += 1
+                store.activateSavedRulesForCurrentCycle()
+                pendingExpectation?.fulfill()
+            },
             onPreviewRestOverlay: {}))
         host.frame = NSRect(x: 0, y: 0, width: 1080, height: 900)
         let window = NSWindow(contentRect: host.frame, styleMask: [.titled, .closable], backing: .buffered, defer: false)
@@ -684,18 +696,21 @@ final class SettingsLayoutTests: XCTestCase {
         XCTAssertEqual(applications, 0)
         XCTAssertEqual(store.effectiveAutomaticRestThreshold, 120)
         XCTAssertTrue(store.hasPendingRuleChanges)
-        store.settings.ruleChangeEffect = .immediate
-        try await Task.sleep(for: .milliseconds(1100))
+        await expectApplication("Switching to immediate applies the pending threshold") {
+            store.settings.ruleChangeEffect = .immediate
+        }
         XCTAssertEqual(applications, 1)
         XCTAssertEqual(store.effectiveAutomaticRestThreshold, 90)
-        store.settings.automaticRestMode = .lockSleepOrIdle
-        store.automaticRestSeconds = 45
-        try await Task.sleep(for: .milliseconds(1100))
+        await expectApplication("The automatic rest mode and duration apply together") {
+            store.settings.automaticRestMode = .lockSleepOrIdle
+            store.automaticRestSeconds = 45
+        }
         XCTAssertEqual(applications, 2)
         XCTAssertEqual(store.currentAutomaticRestMode, .lockSleepOrIdle)
         XCTAssertEqual(store.effectiveAutomaticRestThreshold, 60)
-        store.shortBreakSeconds = 180
-        try await Task.sleep(for: .milliseconds(1100))
+        await expectApplication("Changing the short break updates the effective threshold") {
+            store.shortBreakSeconds = 180
+        }
         XCTAssertEqual(applications, 3, "Linked edits must apply together, once")
         XCTAssertEqual(store.currentCycleRules.shortBreakDuration, 180)
         XCTAssertEqual(store.effectiveAutomaticRestThreshold, 180)

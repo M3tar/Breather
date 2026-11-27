@@ -85,14 +85,18 @@ final class SettingsStore: ObservableObject {
     }
 
     private let userDefaults: UserDefaults
-    private let rulesKey = "breather.rules"
-    private let settingsKey = "breather.settings"
+    private static let rulesKey = "breather.rules"
+    private static let settingsKey = "breather.settings"
     private var isRestoringDefaults = false
+
+    static func hasSavedPreferences(in userDefaults: UserDefaults = .standard) -> Bool {
+        userDefaults.data(forKey: rulesKey) != nil || userDefaults.data(forKey: settingsKey) != nil
+    }
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
-        let savedRules = Self.load(BreakRules.self, key: rulesKey, from: userDefaults) ?? BreakRules()
-        let savedSettings = Self.load(AppSettings.self, key: settingsKey, from: userDefaults) ?? AppSettings()
+        let savedRules = Self.load(BreakRules.self, key: Self.rulesKey, from: userDefaults) ?? BreakRules()
+        let savedSettings = Self.load(AppSettings.self, key: Self.settingsKey, from: userDefaults) ?? AppSettings()
         self.rules = savedRules
         self.settings = savedSettings
         self.currentCycleConfiguration = CycleConfiguration(rules: savedRules, settings: savedSettings)
@@ -171,11 +175,11 @@ final class SettingsStore: ObservableObject {
     }
 
     private func saveRules() {
-        save(rules, key: rulesKey)
+        save(rules, key: Self.rulesKey)
     }
 
     private func saveSettings() {
-        save(settings, key: settingsKey)
+        save(settings, key: Self.settingsKey)
     }
 
     private func save<T: Encodable>(_ value: T, key: String) {

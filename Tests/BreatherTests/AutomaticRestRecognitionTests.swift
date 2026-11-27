@@ -67,6 +67,101 @@ final class BreakSchedulerAutomaticRestTests: XCTestCase {
         notifications = nil
     }
 
+    func testAutomaticSettlementBoundariesAndReturnDate() {
+        var events: [RestEvent] = []
+        scheduler.onResult = { events.append($0) }
+        for duration in [299, 300, 7199, 7200, 14400, 36000] {
+            events.removeAll()
+            scheduler.tick()
+            scheduler.setComputerActivity(ComputerActivityState(isLocked: true))
+            clock.advance(Double(duration))
+            scheduler.setComputerActivity(ComputerActivityState())
+            XCTAssertEqual(events.map(\.source), (300..<7200).contains(duration) ? [.automatic] : [])
+            XCTAssertEqual(scheduler.remainingSeconds, duration >= 300 ? 1200 : 1199)
+            if let event = events.first { XCTAssertEqual(event.date, clock.now) }
+        }
+    }
+
+    func testManualSettlementRejectsOldSessionAndRestrictedActions() throws {
+        var events: [RestEvent] = []
+        scheduler.onResult = { events.append($0) }
+        scheduler.startRestNow()
+        let id = try XCTUnwrap(scheduler.restSessionID)
+        store.settings.strictMode = true
+        scheduler.confirmRecentRest(id)
+        store.settings.strictMode = false
+        store.settings.allowSkip = false
+        scheduler.confirmRecentRest(id)
+        XCTAssertTrue(events.isEmpty)
+        store.settings.allowSkip = true
+        scheduler.confirmRecentRest(id)
+        scheduler.startRestNow()
+        scheduler.confirmRecentRest(id)
+        scheduler.skipBreak()
+        XCTAssertEqual(events.map(\.source), [.manual, .skipped])
+    }
+
+    func testIdleReturnIncludingOverlappingLockSettlesOnce() {
+        store.settings.automaticRestMode = .lockSleepOrIdle
+        store.activateSavedRulesForCurrentCycle()
+        var events: [RestEvent] = []
+        scheduler.onResult = { events.append($0) }
+        for duration in [5400, 7200] {
+            events.removeAll()
+            idle.idleSeconds = 300
+            scheduler.tick()
+            scheduler.setComputerActivity(ComputerActivityState(isLocked: true))
+            clock.advance(Double(duration - 300))
+            XCTAssertTrue(events.isEmpty)
+            idle.idleSeconds = 0
+            scheduler.setComputerActivity(ComputerActivityState())
+            scheduler.tick()
+            scheduler.tick()
+            XCTAssertEqual(events.map(\.source), duration < 7200 ? [.automatic] : [])
+        }
+    }
+
+    func testInputJustBeforeCapIsCountedWhileMirroringRemainsPaused() throws {
+        store.settings.automaticRestMode = .lockSleepOrIdle
+        store.activateSavedRulesForCurrentCycle()
+        scheduler.startRestNow()
+        scheduler.snoozeBreak()
+        var events: [RestEvent] = []
+        scheduler.onResult = { events.append($0) }
+        scheduler.setComputerActivity(ComputerActivityState(isLocked: true))
+        scheduler.setDisplayMirroringActive(true)
+        clock.advance(7199)
+        idle.idleSeconds = 7199
+        scheduler.setComputerActivity(ComputerActivityState())
+        clock.advance(1.3)
+        idle.idleSeconds = 0.7
+        scheduler.tick()
+        XCTAssertEqual(scheduler.consecutiveMissedBreaks, 0)
+        XCTAssertEqual(scheduler.pauseReasons, [.displayMirroring])
+        XCTAssertEqual(try XCTUnwrap(events.first).date, clock.now.addingTimeInterval(-0.7))
+        scheduler.setDisplayMirroringActive(false)
+        XCTAssertEqual(events.count, 1)
+    }
+
+    func testCountdownSnoozeResetAndMidnightReturn() throws {
+        var events: [RestEvent] = []
+        scheduler.onResult = { events.append($0) }
+        scheduler.startRestNow()
+        scheduler.resetWorkCycle()
+        scheduler.startRestNow()
+        scheduler.snoozeBreak()
+        while scheduler.state == .snoozing { scheduler.tick() }
+        XCTAssertTrue(events.isEmpty)
+        while scheduler.isResting { scheduler.tick() }
+        XCTAssertEqual(events.map(\.source), [.countdown])
+        clock.now = try XCTUnwrap(Calendar.current.date(from: DateComponents(year: 2026, month: 12, day: 31, hour: 23, minute: 58)))
+        scheduler.setComputerActivity(ComputerActivityState(isLocked: true))
+        clock.advance(420)
+        scheduler.setComputerActivity(ComputerActivityState())
+        XCTAssertEqual(events.map(\.source), [.countdown, .automatic])
+        XCTAssertEqual(Calendar.current.component(.day, from: events.last!.date), 1)
+    }
+
     func testReadingWithoutInputKeepsWorkTimerInDefaultAndDisabledModes() {
         idle.idleSeconds = 3600
         for mode in [AutomaticRestMode.lockOrSleep, .disabled] {

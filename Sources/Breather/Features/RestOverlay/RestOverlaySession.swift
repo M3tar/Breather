@@ -30,7 +30,6 @@ final class RestOverlaySession: ObservableObject {
     @Published private(set) var remainingSeconds: Int
     @Published private(set) var isDismissing = false
     @Published private(set) var isAnimationPaused = false
-    @Published private(set) var sceneStopTime: TimeInterval?
 
     private let uptime: () -> TimeInterval
     private var anchor: TimeInterval
@@ -61,9 +60,6 @@ final class RestOverlaySession: ObservableObject {
         scene = DinosaurSceneModel(seed: seed)
         self.uptime = uptime
         anchor = uptime()
-        if Double(self.remainingSeconds) <= min(2, Double(self.totalSeconds) * 0.1) {
-            sceneStopTime = 0
-        }
     }
 
     var formattedTime: String {
@@ -78,16 +74,9 @@ final class RestOverlaySession: ObservableObject {
         accumulated + (isAnimationPaused ? 0 : max(0, uptime() - anchor))
     }
 
-    var hasSceneStopped: Bool {
-        sceneStopTime.map { animationElapsed >= $0 } ?? false
-    }
-
     func updateRemaining(_ seconds: Int) {
         guard !isDismissing else { return }
         let value = max(0, min(totalSeconds, seconds))
-        if sceneStopTime == nil, Double(value) <= min(2, Double(totalSeconds) * 0.1) {
-            sceneStopTime = scene.finishTime(after: animationElapsed)
-        }
         if value != remainingSeconds { remainingSeconds = value }
     }
 
